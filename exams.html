@@ -97,9 +97,10 @@ function loadClasses() {
     classSelect.innerHTML = `<option value="">Select Class</option>`;
     db.ref("classes").once("value", snap => {
         snap.forEach(cls => {
+            const c = cls.val();
             const option = document.createElement("option");
-            option.value = cls.val().name; // use class name as value
-            option.textContent = cls.val().name;
+            option.value = c.name; // Use class name for filtering
+            option.textContent = c.name;
             classSelect.appendChild(option);
         });
     });
@@ -115,19 +116,18 @@ function loadStudentsAndSubjects() {
     subjectSelect.innerHTML = `<option value="">Select Subject</option>`;
     if (!className) return;
 
-    // Load students for selected class
-    db.ref("students").orderByChild("myClass").equalTo(className).once("value", snapshot => {
-        if (!snapshot.exists()) return; // No students in this class
-        snapshot.forEach(snapChild => {
-            const student = snapChild.val();
+    // Load students
+    db.ref("students").orderByChild("myClass").equalTo(className).once("value", snap => {
+        snap.forEach(studentSnap => {
+            const student = studentSnap.val();
             const option = document.createElement("option");
-            option.value = snapChild.key; // Firebase key
+            option.value = studentSnap.key;
             option.textContent = student.name;
             studentSelect.appendChild(option);
         });
     });
 
-    // Load subjects for selected class
+    // Load subjects
     db.ref("classes").orderByChild("name").equalTo(className).once("value", snap => {
         snap.forEach(clsSnap => {
             const subjects = clsSnap.val().subjects || [];
@@ -169,6 +169,7 @@ function addResult() {
 
     if (!cls || !studentID || !subject || score === "") return alert("Fill all fields");
 
+    // Get student name
     db.ref("students/" + studentID).once("value", snap => {
         const studentName = snap.val().name;
 
