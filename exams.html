@@ -98,7 +98,7 @@ function loadClasses() {
 
     db.ref("classes").once("value", snap => {
         snap.forEach(cls => {
-            const className = cls.val().name; // correct field
+            const className = cls.val().name;
             const option = document.createElement("option");
             option.value = className;
             option.textContent = className;
@@ -117,7 +117,7 @@ function loadStudents() {
     subjectSelect.innerHTML = `<option value="">Select Subject</option>`;
     if (!className) return;
 
-    // Load students in this class
+    // Load students in this class (use correct field "myClass")
     db.ref("students").orderByChild("myClass").equalTo(className).once("value", snap => {
         snap.forEach(s => {
             const option = document.createElement("option");
