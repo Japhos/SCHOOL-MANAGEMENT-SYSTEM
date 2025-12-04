@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -95,35 +95,47 @@ tr:hover { background:#c3edc5; }
 function loadClasses() {
     const classSelect = document.getElementById("examClass");
     classSelect.innerHTML = `<option value="">Select Class</option>`;
+
     db.ref("classes").once("value", snap => {
         snap.forEach(cls => {
-            classSelect.innerHTML += `<option value="${cls.key || cls.key}">${cls.val().name}</option>`;
+            const className = cls.val().name; // correct field
+            const option = document.createElement("option");
+            option.value = className;
+            option.textContent = className;
+            classSelect.appendChild(option);
         });
     });
 }
 
-// ===== Load Students based on class =====
+// ===== Load Students & Subjects based on selected class =====
 function loadStudents() {
     const className = document.getElementById("examClass").value;
     const studentSelect = document.getElementById("examStudent");
+    const subjectSelect = document.getElementById("examSubject");
+
     studentSelect.innerHTML = `<option value="">Select Student</option>`;
-    document.getElementById("examSubject").innerHTML = `<option value="">Select Subject</option>`;
+    subjectSelect.innerHTML = `<option value="">Select Subject</option>`;
     if (!className) return;
 
-    // Load students
-    db.ref("students").orderByChild("class").equalTo(className).once("value", snap => {
+    // Load students in this class
+    db.ref("students").orderByChild("myClass").equalTo(className).once("value", snap => {
         snap.forEach(s => {
-            studentSelect.innerHTML += `<option value="${s.key}">${s.val().name}</option>`;
+            const option = document.createElement("option");
+            option.value = s.key;
+            option.textContent = s.val().name;
+            studentSelect.appendChild(option);
         });
     });
 
-    // Load subjects
+    // Load subjects for this class
     db.ref("classes").orderByChild("name").equalTo(className).once("value", snap => {
         snap.forEach(cls => {
             const subjects = cls.val().subjects || [];
-            const subjectSelect = document.getElementById("examSubject");
             subjects.forEach(sub => {
-                subjectSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
+                const option = document.createElement("option");
+                option.value = sub;
+                option.textContent = sub;
+                subjectSelect.appendChild(option);
             });
         });
     });
