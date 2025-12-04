@@ -57,7 +57,7 @@ tr:hover { background:#c3edc5; }
     <!-- ADD RESULT FORM -->
     <div class="form-box">
         <h3>Add Exam Result</h3>
-        <select id="examClass" onchange="loadStudents()">
+        <select id="examClass" onchange="loadStudentsAndSubjects()">
             <option value="">Select Class</option>
         </select>
         <select id="examStudent">
@@ -95,20 +95,18 @@ tr:hover { background:#c3edc5; }
 function loadClasses() {
     const classSelect = document.getElementById("examClass");
     classSelect.innerHTML = `<option value="">Select Class</option>`;
-
     db.ref("classes").once("value", snap => {
         snap.forEach(cls => {
-            const className = cls.val().name;
             const option = document.createElement("option");
-            option.value = className;
-            option.textContent = className;
+            option.value = cls.val().name; // use class name as value
+            option.textContent = cls.val().name;
             classSelect.appendChild(option);
         });
     });
 }
 
 // ===== Load Students & Subjects based on selected class =====
-function loadStudents() {
+function loadStudentsAndSubjects() {
     const className = document.getElementById("examClass").value;
     const studentSelect = document.getElementById("examStudent");
     const subjectSelect = document.getElementById("examSubject");
@@ -117,20 +115,22 @@ function loadStudents() {
     subjectSelect.innerHTML = `<option value="">Select Subject</option>`;
     if (!className) return;
 
-    // Load students in this class (use correct field "myClass")
-    db.ref("students").orderByChild("myClass").equalTo(className).once("value", snap => {
-        snap.forEach(s => {
+    // Load students for selected class
+    db.ref("students").orderByChild("myClass").equalTo(className).once("value", snapshot => {
+        if (!snapshot.exists()) return; // No students in this class
+        snapshot.forEach(snapChild => {
+            const student = snapChild.val();
             const option = document.createElement("option");
-            option.value = s.key;
-            option.textContent = s.val().name;
+            option.value = snapChild.key; // Firebase key
+            option.textContent = student.name;
             studentSelect.appendChild(option);
         });
     });
 
-    // Load subjects for this class
+    // Load subjects for selected class
     db.ref("classes").orderByChild("name").equalTo(className).once("value", snap => {
-        snap.forEach(cls => {
-            const subjects = cls.val().subjects || [];
+        snap.forEach(clsSnap => {
+            const subjects = clsSnap.val().subjects || [];
             subjects.forEach(sub => {
                 const option = document.createElement("option");
                 option.value = sub;
@@ -169,7 +169,6 @@ function addResult() {
 
     if (!cls || !studentID || !subject || score === "") return alert("Fill all fields");
 
-    // Get student name
     db.ref("students/" + studentID).once("value", snap => {
         const studentName = snap.val().name;
 
