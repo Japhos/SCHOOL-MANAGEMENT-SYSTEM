@@ -10,6 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
+  // Firebase configuration
   const firebaseConfig = {
     apiKey: "AIzaSyBZWRqW1a0qLyx76QZapberiE4Mio97OqI",
     authDomain: "school-management-system-24753.firebaseapp.com",
@@ -20,11 +21,9 @@
     measurementId: "G-7M9W1CBJD9"
   };
 
+  // Initialize Firebase
   const app = firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
-
-  // Hardcoded master admin
-  db.ref("users/Admin/master").set({ name: "Master Admin", password: "admin123" });
 </script>
 
 <style>
@@ -63,8 +62,8 @@ tr:hover { background:#c3edc5; }
         <input type="password" id="userPassword" placeholder="Password">
         <select id="userRole">
             <option value="">Select Role</option>
-            <option value="Admin">Admin</option>
-            <option value="User">User</option>
+            <option value="admin">Admin</option>
+            <option value="user">User</option>
         </select>
         <button onclick="addUser()">Add User</button>
     </div>
@@ -89,16 +88,16 @@ tr:hover { background:#c3edc5; }
 </div>
 
 <script>
-// Load users from Firebase
+// Load users
 function loadUsers() {
     const tbody = document.querySelector("#usersTable tbody");
     tbody.innerHTML = "";
     db.ref("users").once("value", snap => {
         snap.forEach(roleSnap => {
             const role = roleSnap.key;
-            roleSnap.forEach(userSnap => {
-                const username = userSnap.key;
-                const user = userSnap.val();
+            roleSnap.forEach(u => {
+                const user = u.val();
+                const username = u.key;
                 const row = `<tr>
                     <td>${user.name}</td>
                     <td>${username}</td>
@@ -111,7 +110,7 @@ function loadUsers() {
     });
 }
 
-// Add user (role-based path)
+// Add user
 function addUser() {
     const name = document.getElementById("userName").value.trim();
     const username = document.getElementById("userUsername").value.trim();
@@ -120,11 +119,12 @@ function addUser() {
 
     if(!name || !username || !password || !role) return alert("Fill all fields");
 
+    // Check duplicate username under the same role
     db.ref("users/" + role + "/" + username).once("value", snap => {
-        if(snap.exists()) return alert("Username already exists.");
+        if(snap.exists()) return alert("Username already exists for this role.");
 
         db.ref("users/" + role + "/" + username).set({ name, password }, err => {
-            if(!err){
+            if(!err) {
                 document.getElementById("userName").value = "";
                 document.getElementById("userUsername").value = "";
                 document.getElementById("userPassword").value = "";
@@ -137,7 +137,7 @@ function addUser() {
 
 // Delete user
 function deleteUser(role, username) {
-    if(confirm("Delete this user?")){
+    if(confirm("Delete this user?")) {
         db.ref("users/" + role + "/" + username).remove(err => {
             if(!err) loadUsers();
         });
@@ -145,7 +145,16 @@ function deleteUser(role, username) {
 }
 
 // Initialize
-window.onload = function() { loadUsers(); };
+window.onload = function() { 
+    loadUsers(); 
+
+    // Ensure master admin exists
+    db.ref("users/admin/master").once("value", snap => {
+        if(!snap.exists()) {
+            db.ref("users/admin/master").set({ name: "Master Admin", password: "admin123" });
+        }
+    });
+};
 </script>
 
 </body>
