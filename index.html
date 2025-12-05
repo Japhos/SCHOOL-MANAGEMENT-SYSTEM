@@ -116,13 +116,13 @@ window.onload = function() {
     const username = localStorage.getItem("loggedInUser");
     const role = localStorage.getItem("userRole");
 
+    // Redirect to login if not logged in
     if (!username || !role) {
-        // Not logged in → redirect to login page
         window.location.href = "login.html";
         return;
     }
 
-    // Only admin can see the "Users & Roles" card
+    // Only admin can see Users & Roles card
     if (role !== "admin") {
         document.getElementById("usersCard").style.display = "none";
     }
