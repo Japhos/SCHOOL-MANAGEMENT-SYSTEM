@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -20,10 +20,7 @@
     appId: "1:98011038194:web:b54b1b91e543127347ab6b",
     measurementId: "G-7M9W1CBJD9"
   };
-
-  // Initialize Firebase
-  const app = firebase.initializeApp(firebaseConfig);
-  const database = firebase.database();
+  firebase.initializeApp(firebaseConfig);
 </script>
 
 <style>
@@ -89,9 +86,20 @@ tr:hover { background:#c3edc5; }
 </div>
 
 <script>
-// ===== Firebase Classes & Subjects Module =====
+// ===== LOGIN CHECK =====
+window.onload = function() {
+    const username = localStorage.getItem("loggedInUser");
+    const role = localStorage.getItem("userRole");
 
-// Add new input field for subjects
+    if (!username || !role) {
+        window.location.href = "login.html";
+        return;
+    }
+
+    loadClasses();
+};
+
+// ===== SUBJECT FIELDS =====
 function addSubjectField() {
     const container = document.getElementById("subjectsContainer");
     const div = document.createElement("div");
@@ -101,10 +109,9 @@ function addSubjectField() {
     container.appendChild(div);
 }
 
-// Remove subject input field
 function removeSubjectField(btn) { btn.parentElement.remove(); }
 
-// Load classes and subjects
+// ===== CLASSES =====
 function loadClasses() {
     const tbody = document.querySelector("#classesTable tbody");
     tbody.innerHTML = "";
@@ -123,18 +130,15 @@ function loadClasses() {
     });
 }
 
-// Add class with subjects
 function addClass() {
     const name = document.getElementById("className").value.trim();
     if (!name) return alert("Enter class name");
 
-    const subjectFields = document.querySelectorAll(".subjectField");
     const subjects = [];
-    subjectFields.forEach(f => { if(f.value.trim()) subjects.push(f.value.trim()); });
+    document.querySelectorAll(".subjectField").forEach(f => { if(f.value.trim()) subjects.push(f.value.trim()); });
     if (subjects.length === 0) return alert("Enter at least one subject");
 
     const ref = firebase.database().ref("classes");
-    // Check for duplicate class
     ref.orderByChild("name").equalTo(name).once("value", snap => {
         if (snap.exists()) return alert(`Class "${name}" already exists.`);
         ref.push({ name, subjects }, err => {
@@ -150,7 +154,6 @@ function addClass() {
     });
 }
 
-// Delete class
 function deleteClass(key) {
     if (confirm("Delete this class?")) {
         firebase.database().ref("classes/" + key).remove(err => {
@@ -158,9 +161,6 @@ function deleteClass(key) {
         });
     }
 }
-
-// Initialize
-window.onload = function() { loadClasses(); };
 </script>
 
 </body>
