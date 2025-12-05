@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -10,7 +10,6 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
-  // Firebase configuration
   const firebaseConfig = {
     apiKey: "AIzaSyBZWRqW1a0qLyx76QZapberiE4Mio97OqI",
     authDomain: "school-management-system-24753.firebaseapp.com",
@@ -21,7 +20,6 @@
     measurementId: "G-7M9W1CBJD9"
   };
 
-  // Initialize Firebase
   const app = firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 </script>
@@ -63,8 +61,7 @@ tr:hover { background:#c3edc5; }
         <select id="userRole">
             <option value="">Select Role</option>
             <option value="Admin">Admin</option>
-            <option value="Teacher">Teacher</option>
-            <option value="Viewer">Viewer</option>
+            <option value="User">User</option>
         </select>
         <button onclick="addUser()">Add User</button>
     </div>
@@ -89,10 +86,25 @@ tr:hover { background:#c3edc5; }
 </div>
 
 <script>
-// Load users
+// ===== LOGIN CHECK =====
+window.onload = function() {
+    const username = localStorage.getItem("loggedInUser");
+    const role = localStorage.getItem("userRole");
+
+    if (!username || !role || role.toLowerCase() !== "admin") {
+        alert("Access denied. Admins only.");
+        window.location.href = "login.html";
+        return;
+    }
+
+    loadUsers();
+}
+
+// ===== LOAD USERS =====
 function loadUsers() {
     const tbody = document.querySelector("#usersTable tbody");
     tbody.innerHTML = "";
+
     db.ref("users").once("value", snap => {
         snap.forEach(u => {
             const user = u.val();
@@ -108,7 +120,7 @@ function loadUsers() {
     });
 }
 
-// Add user
+// ===== ADD USER =====
 function addUser() {
     const name = document.getElementById("userName").value.trim();
     const username = document.getElementById("userUsername").value.trim();
@@ -133,7 +145,7 @@ function addUser() {
     });
 }
 
-// Delete user
+// ===== DELETE USER =====
 function deleteUser(key) {
     if(confirm("Delete this user?")) {
         db.ref("users/"+key).remove(err => {
@@ -141,9 +153,6 @@ function deleteUser(key) {
         });
     }
 }
-
-// Initialize
-window.onload = function() { loadUsers(); };
 </script>
 
 </body>
