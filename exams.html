@@ -91,8 +91,21 @@ tr:hover { background:#c3edc5; }
 </div>
 
 <script>
+// ============================
+// LOGIN CHECK
+// ============================
+(function(){
+    const loggedInUser = localStorage.getItem("loggedInUser");
+    const userRole = localStorage.getItem("userRole");
+
+    if(!loggedInUser || !userRole){
+        alert("Please log in first!");
+        window.location.href = "login.html";
+    }
+})();
+
 // ==========================
-// LOAD CLASSES (KEY FIXED)
+// LOAD CLASSES
 // ==========================
 function loadClasses() {
     const classSelect = document.getElementById("examClass");
@@ -100,7 +113,7 @@ function loadClasses() {
 
     db.ref("classes").once("value", snap => {
         snap.forEach(cls => {
-            const className = cls.val().name;   // IMPORTANT FIX
+            const className = cls.val().name;
             classSelect.innerHTML += `<option value="${className}">${className}</option>`;
         });
     });
