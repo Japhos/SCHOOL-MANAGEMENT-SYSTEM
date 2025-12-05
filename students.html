@@ -81,8 +81,20 @@ tr:hover { background:#c3edc5; }
 
 </div>
 
-
 <script>
+// ============================
+// LOGIN CHECK
+// ============================
+(function(){
+    const loggedInUser = localStorage.getItem("loggedInUser");
+    const userRole = localStorage.getItem("userRole");
+
+    if(!loggedInUser || !userRole){
+        alert("Please log in first!");
+        window.location.href = "login.html";
+    }
+})();
+
 // ============================
 // LOAD CLASSES INTO DROPDOWN
 // ============================
@@ -93,7 +105,6 @@ function loadClasses() {
     firebase.database().ref("classes").once("value", snap => {
         snap.forEach(child => {
             const cls = child.val();
-
             const option = document.createElement("option");
             option.value = cls.name;
             option.textContent = cls.name;
