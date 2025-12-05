@@ -57,7 +57,7 @@ tr:hover { background:#c3edc5; }
     <!-- ADD RESULT FORM -->
     <div class="form-box">
         <h3>Add Exam Result</h3>
-        <select id="examClass" onchange="loadStudentsAndSubjects()">
+        <select id="examClass" onchange="loadStudents()">
             <option value="">Select Class</option>
         </select>
         <select id="examStudent">
@@ -91,121 +91,138 @@ tr:hover { background:#c3edc5; }
 </div>
 
 <script>
-// ===== Load Classes =====
+// ==========================
+// LOAD CLASSES (KEY FIXED)
+// ==========================
 function loadClasses() {
     const classSelect = document.getElementById("examClass");
     classSelect.innerHTML = `<option value="">Select Class</option>`;
+
     db.ref("classes").once("value", snap => {
         snap.forEach(cls => {
-            const c = cls.val();
-            const option = document.createElement("option");
-            option.value = c.name; // Use class name for filtering
-            option.textContent = c.name;
-            classSelect.appendChild(option);
+            const className = cls.val().name;   // IMPORTANT FIX
+            classSelect.innerHTML += `<option value="${className}">${className}</option>`;
         });
     });
 }
 
-// ===== Load Students & Subjects based on selected class =====
-function loadStudentsAndSubjects() {
+// ==========================
+// LOAD STUDENTS BY CLASS
+// ==========================
+function loadStudents() {
     const className = document.getElementById("examClass").value;
     const studentSelect = document.getElementById("examStudent");
     const subjectSelect = document.getElementById("examSubject");
 
     studentSelect.innerHTML = `<option value="">Select Student</option>`;
     subjectSelect.innerHTML = `<option value="">Select Subject</option>`;
+
     if (!className) return;
 
-    // Load students
-    db.ref("students").orderByChild("myClass").equalTo(className).once("value", snap => {
-        snap.forEach(studentSnap => {
-            const student = studentSnap.val();
-            const option = document.createElement("option");
-            option.value = studentSnap.key;
-            option.textContent = student.name;
-            studentSelect.appendChild(option);
-        });
-    });
+    // Load students whose class = selected class name
+    db.ref("students")
+      .orderByChild("class")
+      .equalTo(className)
+      .once("value", snap => {
+          snap.forEach(student => {
+              const s = student.val();
+              studentSelect.innerHTML += `<option value="${student.key}">${s.name}</option>`;
+          });
+      });
 
-    // Load subjects
-    db.ref("classes").orderByChild("name").equalTo(className).once("value", snap => {
-        snap.forEach(clsSnap => {
-            const subjects = clsSnap.val().subjects || [];
-            subjects.forEach(sub => {
-                const option = document.createElement("option");
-                option.value = sub;
-                option.textContent = sub;
-                subjectSelect.appendChild(option);
-            });
-        });
-    });
+    // Load subjects from class
+    db.ref("classes")
+      .orderByChild("name")
+      .equalTo(className)
+      .once("value", snap => {
+          snap.forEach(cls => {
+              const subjects = cls.val().subjects || [];
+              subjects.forEach(sub => {
+                  subjectSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
+              });
+          });
+      });
 }
 
-// ===== Load Results =====
+// ==========================
+// LOAD RESULTS TABLE
+// ==========================
 function loadResults() {
     const tbody = document.querySelector("#resultsTable tbody");
     tbody.innerHTML = "";
+
     db.ref("results").once("value", snap => {
         snap.forEach(res => {
             const r = res.val();
-            const row = `<tr>
-                <td>${r.class}</td>
-                <td>${r.studentName}</td>
-                <td>${r.subject}</td>
-                <td>${r.score}</td>
-                <td><button class="delete-btn" onclick="deleteResult('${res.key}')">Delete</button></td>
-            </tr>`;
+            const row = `
+                <tr>
+                    <td>${r.class}</td>
+                    <td>${r.studentName}</td>
+                    <td>${r.subject}</td>
+                    <td>${r.score}</td>
+                    <td><button class="delete-btn" onclick="deleteResult('${res.key}')">Delete</button></td>
+                </tr>`;
             tbody.innerHTML += row;
         });
     });
 }
 
-// ===== Add Result =====
+// ==========================
+// ADD RESULT
+// ==========================
 function addResult() {
     const cls = document.getElementById("examClass").value;
     const studentID = document.getElementById("examStudent").value;
     const subject = document.getElementById("examSubject").value;
     const score = document.getElementById("examScore").value.trim();
 
-    if (!cls || !studentID || !subject || score === "") return alert("Fill all fields");
+    if (!cls || !studentID || !subject || score === "") {
+        return alert("Fill all fields");
+    }
 
     // Get student name
     db.ref("students/" + studentID).once("value", snap => {
         const studentName = snap.val().name;
 
-        // Check duplicate
-        db.ref("results").orderByChild("student_subject").equalTo(studentID+"_"+subject).once("value", s => {
-            if(s.exists()) return alert("Result for this student & subject already exists.");
+        // Duplicate check
+        db.ref("results")
+          .orderByChild("student_subject")
+          .equalTo(studentID + "_" + subject)
+          .once("value", s => {
+              if (s.exists()) return alert("Result already exists for this student & subject.");
 
-            db.ref("results").push({
-                class: cls,
-                studentID,
-                studentName,
-                subject,
-                score,
-                student_subject: studentID+"_"+subject
-            }, err => {
-                if(!err) {
-                    document.getElementById("examScore").value = "";
-                    loadResults();
-                }
-            });
-        });
+              db.ref("results").push({
+                  class: cls,
+                  studentID,
+                  studentName,
+                  subject,
+                  score,
+                  student_subject: studentID + "_" + subject
+              }, err => {
+                  if (!err) {
+                      document.getElementById("examScore").value = "";
+                      loadResults();
+                  }
+              });
+          });
     });
 }
 
-// ===== Delete Result =====
+// ==========================
+// DELETE RESULT
+// ==========================
 function deleteResult(key) {
-    if(confirm("Delete this result?")) {
-        db.ref("results/" + key).remove(err => {
-            if(!err) loadResults();
-        });
+    if (confirm("Delete this result?")) {
+        db.ref("results/" + key).remove(() => loadResults());
     }
 }
 
-// ===== Initialize =====
+// ==========================
+// INIT
+// ==========================
 window.onload = function() {
     loadClasses();
+    loadStudents();
     loadResults();
 };
 </script>
