@@ -13,7 +13,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
-  const firebaseConfig = {
+const firebaseConfig = {
     apiKey: "AIzaSyBZWRqW1a0qLyx76QZapberiE4Mio97OqI",
     authDomain: "school-management-system-24753.firebaseapp.com",
     projectId: "school-management-system-24753",
@@ -21,10 +21,9 @@
     messagingSenderId: "98011038194",
     appId: "1:98011038194:web:b54b1b91e543127347ab6b",
     measurementId: "G-7M9W1CBJD9"
-  };
-
-  const app = firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+};
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 </script>
 
 <style>
@@ -245,12 +244,12 @@ function importFromExcel(evt) {
 // ==========================
 // LOAD & DISPLAY RESULTS
 // ==========================
-let selectedStudentID = null;
+let selectedStudentRow = null;
 
-function selectTableRow(row, studentID){
+function selectTableRow(row){
     document.querySelectorAll("#resultsTable tbody tr").forEach(r=>r.classList.remove('selected-row'));
     row.classList.add('selected-row');
-    selectedStudentID = studentID;
+    selectedStudentRow = row;
 }
 
 function loadResults(){
@@ -266,23 +265,24 @@ function loadResults(){
         const sortedIDs = Object.keys(studentResults).sort((a,b)=>{
             const avgA = studentResults[a].reduce((sum,r)=>sum+Number(r.score),0)/studentResults[a].length;
             const avgB = studentResults[b].reduce((sum,r)=>sum+Number(r.score),0)/studentResults[b].length;
-            return avgB - avgA; // descending
+            return avgB - avgA;
         });
         sortedIDs.forEach(studentID=>{
             const results = studentResults[studentID];
             const studentName = results[0].studentName;
             const avg = results.reduce((sum,r)=>sum+Number(r.score),0)/results.length;
+            const subjectsStr = results.map(r=>r.subject + ':' + r.score).join(', ');
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td>${studentName}</td>
                 <td>${results[0].year}</td>
                 <td>${results[0].term}</td>
                 <td>${results[0].class}</td>
-                <td>${results.map(r=>r.subject).join(', ')}</td>
+                <td>${subjectsStr}</td>
                 <td>${avg.toFixed(2)}</td>
                 <td>${getRemarks(avg)}</td>
             `;
-            row.onclick = ()=>selectTableRow(row, studentID);
+            row.onclick = ()=>selectTableRow(row);
             tbody.appendChild(row);
         });
     });
@@ -292,24 +292,18 @@ function loadResults(){
 // GENERATE STUDENT REPORT
 // ==========================
 document.getElementById("generateReportBtn").onclick = function() {
-    if(!selectedStudentID) return alert("Select a student from the table first!");
-    db.ref("students/" + selectedStudentID).once("value")
-      .then(studentSnap => {
-        if(!studentSnap.exists()) return alert("Student not found");
-        const studentName = studentSnap.val().name;
-        const studentClass = studentSnap.val().class;
+    if(!selectedStudentRow) return alert("Select a student from the table first!");
+    const cells = selectedStudentRow.children;
+    const studentName = cells[0].innerText;
+    const year = cells[1].innerText;
+    const term = cells[2].innerText;
+    const studentClass = cells[3].innerText;
+    const subjects = cells[4].innerText.split(', ');
+    const avg = Number(cells[5].innerText);
+    const generalRemarks = cells[6].innerText;
 
-        db.ref("results").orderByChild("studentID").equalTo(selectedStudentID).once("value")
-          .then(resultsSnap => {
-            const results = [];
-            resultsSnap.forEach(r => results.push(r.val()));
-            if(results.length === 0) return alert("No results for this student");
-
-            const avg = results.reduce((sum,r)=>sum+Number(r.score),0)/results.length;
-            const generalRemarks = getRemarks(avg);
-
-            let printWindow = window.open('','height=800,width=800');
-            let html = `
+    let printWindow = window.open('','height=800,width=800');
+    let html = `
 <html><head><title>Report - ${studentName}</title>
 <style>
 body{font-family:"Segoe UI",sans-serif;margin:40px;color:#064d1a;}
@@ -331,9 +325,12 @@ tr:nth-child(odd){background:#e6f9e8;}
 <h3>REPORT FORM</h3>
 <h4>Student: ${studentName}</h4>
 <h4>Class: ${studentClass}</h4>
-<h4>Year: ${results[0].year} | Term: ${results[0].term}</h4>
+<h4>Year: ${year} | Term: ${term}</h4>
 <table><thead><tr><th>Subject</th><th>Score</th><th>Remarks</th></tr></thead><tbody>
-${results.map(r=>`<tr><td>${r.subject}</td><td>${r.score}</td><td>${getRemarks(r.score)}</td></tr>`).join('')}
+${subjects.map(s=>{
+    const [sub, score] = s.split(':');
+    return `<tr><td>${sub}</td><td>${score}</td><td>${getRemarks(score)}</td></tr>`;
+}).join('')}
 </tbody></table>
 <div class="remarks">Average Score: ${avg.toFixed(2)} | General Remarks: ${generalRemarks}</div>
 <div class="signatures">
@@ -341,12 +338,9 @@ ${results.map(r=>`<tr><td>${r.subject}</td><td>${r.score}</td><td>${getRemarks(r
 <div>___________________<br>HeadTeacher</div>
 </div>
 </body></html>`;
-            printWindow.document.write(html);
-            printWindow.document.close();
-            printWindow.print();
-          });
-      })
-      .catch(err => alert("Error generating report: "+err));
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.print();
 };
 
 // ==========================
