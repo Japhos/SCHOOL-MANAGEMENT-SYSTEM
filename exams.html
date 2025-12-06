@@ -10,7 +10,6 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
-  // Firebase configuration
   const firebaseConfig = {
     apiKey: "AIzaSyBZWRqW1a0qLyx76QZapberiE4Mio97OqI",
     authDomain: "school-management-system-24753.firebaseapp.com",
@@ -21,7 +20,6 @@
     measurementId: "G-7M9W1CBJD9"
   };
 
-  // Initialize Firebase
   const app = firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 </script>
@@ -54,9 +52,17 @@ tr:hover { background:#c3edc5; }
 
 <div class="container">
 
-    <!-- ADD RESULT FORM -->
     <div class="form-box">
         <h3>Add Exam Result</h3>
+
+        <select id="examYear"></select>
+        <select id="examTerm">
+            <option value="">Select Term</option>
+            <option value="Term 1">Term 1</option>
+            <option value="Term 2">Term 2</option>
+            <option value="Term 3">Term 3</option>
+        </select>
+
         <select id="examClass" onchange="loadStudents()">
             <option value="">Select Class</option>
         </select>
@@ -66,14 +72,16 @@ tr:hover { background:#c3edc5; }
         <select id="examSubject">
             <option value="">Select Subject</option>
         </select>
+
         <input type="number" id="examScore" placeholder="Score/Marks">
         <button onclick="addResult()">Add Result</button>
     </div>
 
-    <!-- RESULTS TABLE -->
     <table id="resultsTable">
         <thead>
             <tr>
+                <th>Year</th>
+                <th>Term</th>
                 <th>Class</th>
                 <th>Student</th>
                 <th>Subject</th>
@@ -104,6 +112,19 @@ tr:hover { background:#c3edc5; }
     }
 })();
 
+// =====================================
+// GENERATE YEARS (2020 → CURRENT YEAR)
+// =====================================
+function loadYears() {
+    const yearSelect = document.getElementById("examYear");
+    const now = new Date().getFullYear();
+    yearSelect.innerHTML = `<option value="">Select Year</option>`;
+
+    for (let y = 2020; y <= now; y++) {
+        yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+    }
+}
+
 // ==========================
 // LOAD CLASSES
 // ==========================
@@ -113,14 +134,13 @@ function loadClasses() {
 
     db.ref("classes").once("value", snap => {
         snap.forEach(cls => {
-            const className = cls.val().name;
-            classSelect.innerHTML += `<option value="${className}">${className}</option>`;
+            classSelect.innerHTML += `<option value="${cls.val().name}">${cls.val().name}</option>`;
         });
     });
 }
 
 // ==========================
-// LOAD STUDENTS BY CLASS
+// LOAD STUDENTS & SUBJECTS
 // ==========================
 function loadStudents() {
     const className = document.getElementById("examClass").value;
@@ -132,18 +152,15 @@ function loadStudents() {
 
     if (!className) return;
 
-    // Load students whose class = selected class name
     db.ref("students")
       .orderByChild("class")
       .equalTo(className)
       .once("value", snap => {
           snap.forEach(student => {
-              const s = student.val();
-              studentSelect.innerHTML += `<option value="${student.key}">${s.name}</option>`;
+              studentSelect.innerHTML += `<option value="${student.key}">${student.val().name}</option>`;
           });
       });
 
-    // Load subjects from class
     db.ref("classes")
       .orderByChild("name")
       .equalTo(className)
@@ -158,7 +175,7 @@ function loadStudents() {
 }
 
 // ==========================
-// LOAD RESULTS TABLE
+// LOAD RESULTS
 // ==========================
 function loadResults() {
     const tbody = document.querySelector("#resultsTable tbody");
@@ -167,15 +184,16 @@ function loadResults() {
     db.ref("results").once("value", snap => {
         snap.forEach(res => {
             const r = res.val();
-            const row = `
+            tbody.innerHTML += `
                 <tr>
+                    <td>${r.year}</td>
+                    <td>${r.term}</td>
                     <td>${r.class}</td>
                     <td>${r.studentName}</td>
                     <td>${r.subject}</td>
                     <td>${r.score}</td>
                     <td><button class="delete-btn" onclick="deleteResult('${res.key}')">Delete</button></td>
                 </tr>`;
-            tbody.innerHTML += row;
         });
     });
 }
@@ -184,40 +202,34 @@ function loadResults() {
 // ADD RESULT
 // ==========================
 function addResult() {
+    const year = document.getElementById("examYear").value;
+    const term = document.getElementById("examTerm").value;
     const cls = document.getElementById("examClass").value;
     const studentID = document.getElementById("examStudent").value;
     const subject = document.getElementById("examSubject").value;
     const score = document.getElementById("examScore").value.trim();
 
-    if (!cls || !studentID || !subject || score === "") {
+    if (!year || !term || !cls || !studentID || !subject || !score) {
         return alert("Fill all fields");
     }
 
-    // Get student name
     db.ref("students/" + studentID).once("value", snap => {
         const studentName = snap.val().name;
 
-        // Duplicate check
-        db.ref("results")
-          .orderByChild("student_subject")
-          .equalTo(studentID + "_" + subject)
-          .once("value", s => {
-              if (s.exists()) return alert("Result already exists for this student & subject.");
-
-              db.ref("results").push({
-                  class: cls,
-                  studentID,
-                  studentName,
-                  subject,
-                  score,
-                  student_subject: studentID + "_" + subject
-              }, err => {
-                  if (!err) {
-                      document.getElementById("examScore").value = "";
-                      loadResults();
-                  }
-              });
-          });
+        db.ref("results").push({
+            year,
+            term,
+            class: cls,
+            studentID,
+            studentName,
+            subject,
+            score
+        }, err => {
+            if (!err) {
+                document.getElementById("examScore").value = "";
+                loadResults();
+            }
+        });
     });
 }
 
@@ -234,6 +246,7 @@ function deleteResult(key) {
 // INIT
 // ==========================
 window.onload = function() {
+    loadYears();
     loadClasses();
     loadStudents();
     loadResults();
