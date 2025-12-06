@@ -52,11 +52,13 @@ tr:hover { background:#c3edc5; }
 
 /* PRINT HEADER */
 #print-header { display:none; text-align:center; margin-bottom:20px; }
-#print-header h2 { margin:0; font-size:24px; }
-#print-header h3 { margin:0; font-size:18px; }
+#print-header h2 { margin:0; font-size:28px; color:#0b722d; }
+#print-header h3 { margin:0; font-size:22px; color:#064d1a; }
+#print-header h4 { margin:0; font-size:18px; color:#064d1a; margin-top:5px; }
 
 /* ================== PRINT FIX ================== */
 @media print {
+    body { background: white !important; font-family:"Segoe UI",sans-serif; }
     .search-box,
     .form-box,
     .back-btn,
@@ -64,12 +66,27 @@ tr:hover { background:#c3edc5; }
     .sub-title {
         display: none !important;
     }
+
     #print-header { display:block !important; }
+
     table {
         width: 100% !important;
+        border-collapse: collapse !important;
         box-shadow: none !important;
+        font-size:14px;
     }
-    body { background: white !important; }
+    table th, table td {
+        border: 1px solid #0b722d !important;
+        padding: 10px !important;
+    }
+    table th {
+        background: #0b722d !important;
+        color: white !important;
+        text-align: center !important;
+    }
+    table tr:nth-child(even) { background: #d7f5dd !important; }
+    table tr:nth-child(odd) { background: #e6f9e8 !important; }
+    table td { text-align: center !important; }
 }
 </style>
 </head>
@@ -84,7 +101,8 @@ tr:hover { background:#c3edc5; }
     <!-- PRINT HEADER -->
     <div id="print-header">
         <h2>NYAMBUNWA ACADEMY</h2>
-        <h3 id="print-info"></h3>
+        <h3>Results Sheet</h3>
+        <h4 id="print-info"></h4>
     </div>
 
     <!-- -------------------- SEARCH & EXPORT BUTTONS -------------------- -->
