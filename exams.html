@@ -429,62 +429,14 @@ function importFromExcel(evt) {
 }
 
 // ==========================
-// PREPARE PRINT SORTED BY AVERAGE
+// PREPARE PRINT
 // ==========================
 function preparePrint() {
-    const rows = document.querySelectorAll("#resultsTable tbody tr");
-    const students = {};
-
-    rows.forEach(row => {
-        if (row.style.display === "none") return;
-
-        const cells = row.querySelectorAll("td");
-        const studentName = cells[3].innerText;
-        const score = Number(cells[5].innerText);
-
-        if (!students[studentName]) students[studentName] = { total:0, count:0, subjects:[] };
-        students[studentName].total += score;
-        students[studentName].count++;
-        students[studentName].subjects.push({
-            year: cells[0].innerText,
-            term: cells[1].innerText,
-            class: cells[2].innerText,
-            subject: cells[4].innerText,
-            score: score,
-            remarks: getRemarks(score)
-        });
-    });
-
-    const sorted = Object.keys(students).map(name => {
-        const s = students[name];
-        return { name, avg: s.total / s.count, subjects: s.subjects };
-    }).sort((a,b) => b.avg - a.avg);
-
-    const tbody = document.querySelector("#resultsTable tbody");
-    tbody.innerHTML = "";
-    sorted.forEach(student => {
-        student.subjects.forEach(s => {
-            tbody.innerHTML += `
-                <tr>
-                    <td>${s.year}</td>
-                    <td>${s.term}</td>
-                    <td>${s.class}</td>
-                    <td>${student.name}</td>
-                    <td>${s.subject}</td>
-                    <td>${s.score}</td>
-                    <td class="print-remarks">${s.remarks}</td>
-                    <td class="no-print"></td>
-                </tr>`;
-        });
-    });
-
     const year = document.getElementById("searchYear").value || "All Years";
     const term = document.getElementById("searchTerm").value || "All Terms";
     const cls = document.getElementById("searchClass").value || "All Classes";
     document.getElementById("print-info").innerText = `Year: ${year} | Term: ${term} | Class: ${cls}`;
-
     window.print();
-    loadResults(); // restore original table
 }
 
 // ==========================
@@ -493,7 +445,6 @@ function preparePrint() {
 window.onload = function() {
     loadYears();
     loadClasses();
-    loadStudents();
     loadResults();
     populateSearchFilters();
 };
