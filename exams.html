@@ -63,7 +63,8 @@ tr:hover { background:#c3edc5; }
     .form-box,
     .back-btn,
     header,
-    .sub-title {
+    .sub-title,
+    .no-print {
         display: none !important;
     }
 
@@ -87,6 +88,7 @@ tr:hover { background:#c3edc5; }
     table tr:nth-child(even) { background: #d7f5dd !important; }
     table tr:nth-child(odd) { background: #e6f9e8 !important; }
     table td { text-align: center !important; }
+    .print-remarks { display: table-cell !important; text-align: center; }
 }
 </style>
 </head>
@@ -163,7 +165,8 @@ tr:hover { background:#c3edc5; }
                 <th>Student</th>
                 <th>Subject</th>
                 <th>Score</th>
-                <th>Action</th>
+                <th class="print-remarks">Remarks</th>
+                <th class="no-print">Action</th>
             </tr>
         </thead>
         <tbody></tbody>
@@ -269,6 +272,18 @@ function loadStudents() {
 }
 
 // ==========================
+// GET REMARKS
+// ==========================
+function getRemarks(score) {
+    score = Number(score);
+    if (score >= 80) return "Excellent";
+    if (score >= 70) return "Very Good";
+    if (score >= 60) return "Good";
+    if (score >= 50) return "Fair";
+    return "Poor";
+}
+
+// ==========================
 // LOAD RESULTS
 // ==========================
 function loadResults() {
@@ -286,7 +301,8 @@ function loadResults() {
                     <td>${r.studentName}</td>
                     <td>${r.subject}</td>
                     <td>${r.score}</td>
-                    <td><button class="delete-btn" onclick="deleteResult('${res.key}')">Delete</button></td>
+                    <td class="print-remarks">${getRemarks(r.score)}</td>
+                    <td class="no-print"><button class="delete-btn" onclick="deleteResult('${res.key}')">Delete</button></td>
                 </tr>`;
         });
     });
