@@ -50,9 +50,13 @@ tr:hover { background:#c3edc5; }
 .search-box { margin:20px 0; }
 .search-box input { width:250px; padding:10px; border:1px solid #0b722d; border-radius:6px; font-size:15px; }
 
+/* PRINT HEADER */
+#print-header { display:none; text-align:center; margin-bottom:20px; }
+#print-header h2 { margin:0; font-size:24px; }
+#print-header h3 { margin:0; font-size:18px; }
+
 /* ================== PRINT FIX ================== */
 @media print {
-    /* Hide interface elements */
     .search-box,
     .form-box,
     .back-btn,
@@ -60,16 +64,12 @@ tr:hover { background:#c3edc5; }
     .sub-title {
         display: none !important;
     }
-
-    /* Expand table and remove shadows */
+    #print-header { display:block !important; }
     table {
         width: 100% !important;
         box-shadow: none !important;
     }
-
-    body {
-        background: white !important;
-    }
+    body { background: white !important; }
 }
 </style>
 </head>
@@ -81,12 +81,17 @@ tr:hover { background:#c3edc5; }
 
 <div class="container">
 
-    <!-- -------------------- SEARCH & EXPORT BUTTONS -------------------- -->
+    <!-- PRINT HEADER -->
+    <div id="print-header">
+        <h2>NYAMBUNWA ACADEMY</h2>
+        <h3 id="print-info"></h3>
+    </div>
+
     <div class="search-box">
         <input type="text" id="searchInput" placeholder="Search by name, class, subject..." onkeyup="searchTable()">
         <button onclick="exportToExcel()">Export Excel</button>
         <button onclick="document.getElementById('excelFile').click()">Import Excel</button>
-        <button onclick="window.print()">Print</button>
+        <button onclick="preparePrint()">Print</button>
         <input type="file" id="excelFile" accept=".xlsx" style="display:none" onchange="importFromExcel(event)">
     </div>
 
@@ -170,9 +175,17 @@ function loadClasses() {
     classSelect.innerHTML = `<option value="">Select Class</option>`;
 
     db.ref("classes").once("value", snap => {
+        let firstClass = null;
         snap.forEach(cls => {
             classSelect.innerHTML += `<option value="${cls.val().name}">${cls.val().name}</option>`;
+            if (!firstClass) firstClass = cls.val().name;
         });
+
+        // auto-load students/subjects for first class
+        if (firstClass) {
+            classSelect.value = firstClass;
+            loadStudents();
+        }
     });
 }
 
@@ -280,7 +293,7 @@ function deleteResult(key) {
 }
 
 // ==============================================================
-// ******* SEARCH FUNCTIONALITY *******
+// SEARCH FUNCTIONALITY
 // ==============================================================
 function searchTable() {
     const filter = document.getElementById("searchInput").value.toLowerCase();
@@ -293,7 +306,7 @@ function searchTable() {
 }
 
 // ==============================================================
-// ******* EXPORT TO EXCEL *******
+// EXPORT TO EXCEL
 // ==============================================================
 function exportToExcel() {
     const wb = XLSX.utils.book_new();
@@ -304,7 +317,7 @@ function exportToExcel() {
 }
 
 // ==============================================================
-// ******* IMPORT FROM EXCEL *******
+// IMPORT FROM EXCEL
 // ==============================================================
 function importFromExcel(evt) {
     const file = evt.target.files[0];
@@ -338,12 +351,22 @@ function importFromExcel(evt) {
 }
 
 // ==========================
+// PREPARE PRINT
+// ==========================
+function preparePrint() {
+    const year = document.getElementById("examYear").value || "All Years";
+    const term = document.getElementById("examTerm").value || "All Terms";
+    const cls = document.getElementById("examClass").value || "All Classes";
+    document.getElementById("print-info").innerText = `Year: ${year} | Term: ${term} | Class: ${cls}`;
+    window.print();
+}
+
+// ==========================
 // INIT
 // ==========================
 window.onload = function() {
     loadYears();
     loadClasses();
-    loadStudents();
     loadResults();
 };
 
