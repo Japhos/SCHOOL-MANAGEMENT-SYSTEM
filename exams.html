@@ -9,8 +9,8 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
-<!-- EXCEL (SheetJS) -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<!-- SheetJS for Excel -->
+<script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 
 <script>
   const firebaseConfig = {
@@ -23,7 +23,7 @@
     measurementId: "G-7M9W1CBJD9"
   };
 
-  const app = firebase.initializeApp(firebaseConfig);
+  firebase.initializeApp(firebaseConfig);
   const db = firebase.database();
 </script>
 
@@ -31,24 +31,68 @@
 body { margin:0; font-family:"Segoe UI",sans-serif; background:#e9f7ec; }
 header { background:#0b722d; color:white; padding:16px; text-align:center; font-size:26px; font-weight:bold; }
 .sub-title { text-align:center; font-size:18px; color:#064d1a; margin-top:4px; font-weight:600; }
-.container { width:90%; margin:auto; margin-top:20px; }
+.container { width:95%; margin:auto; margin-top:20px; }
 .form-box { background:white; padding:20px; border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.15); border-left:5px solid #0b722d; margin-bottom:20px;}
 .form-box h3 { margin-top:0; color:#064d1a; }
 input, select { width:100%; padding:10px; margin:6px 0 14px 0; border:1px solid #0b722d; border-radius:6px; font-size:15px; }
-button { background:#0b722d; color:white; border:none; padding:12px 20px; font-size:16px; border-radius:6px; cursor:pointer; margin:5px; }
+button { background:#0b722d; color:white; border:none; padding:10px 15px; font-size:15px; border-radius:5px; cursor:pointer; margin:3px; }
 button:hover { background:#095a24; }
-table { width:100%; border-collapse:collapse; margin-top:25px; background:white; border-radius:10px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,0.15); }
-th, td { padding:12px; border-bottom:1px solid #c5e6cc; text-align:left; }
+
+.tools { margin-bottom:10px; }
+.tools input { width:250px; }
+
+table { width:100%; border-collapse:collapse; margin-top:20px; background:white; border-radius:10px; overflow:hidden; box-shadow:0 2px 6px rgba(0,0,0,0.15); }
+th, td { padding:10px; border-bottom:1px solid #c5e6cc; text-align:left; }
 th { background:#0b722d; color:white; }
 tr:nth-child(even) { background:#d7f5dd; }
 tr:hover { background:#c3edc5; }
-.delete-btn { background:red; padding:5px 12px; color:white; border:none; border-radius:4px; cursor:pointer; }
+
+.delete-btn { background:red; padding:5px 10px; color:white; border:none; border-radius:4px; cursor:pointer; }
+
 .back-btn { margin-top:30px; text-align:center; }
 .back-btn a { text-decoration:none; background:#064d1a; color:white; padding:10px 20px; border-radius:6px; font-size:18px; }
 
-/* SEARCH BOX */
-.search-box { margin:20px 0; }
-.search-box input { width:250px; padding:10px; border:1px solid #0b722d; border-radius:6px; font-size:15px; }
+/* PRINT LAYOUT */
+#printHeader {
+    display:none;
+}
+
+@media print {
+    body * { visibility:hidden !important; }
+
+    #resultsTable, #resultsTable * {
+        visibility:visible !important;
+    }
+
+    #printHeader, #printHeader * {
+        visibility:visible !important;
+    }
+
+    #printHeader {
+        display:block !important;
+        position:absolute;
+        top:0;
+        width:100%;
+        text-align:center;
+    }
+
+    #resultsTable {
+        position:absolute;
+        top:180px;
+        left:0;
+        width:100% !important;
+    }
+
+    #resultsTable th {
+        background:#000 !important;
+        color:white !important;
+        -webkit-print-color-adjust: exact;
+    }
+
+    #resultsTable td {
+        border:1px solid #444 !important;
+    }
+}
 </style>
 </head>
 
@@ -59,19 +103,11 @@ tr:hover { background:#c3edc5; }
 
 <div class="container">
 
-    <!-- -------------------- SEARCH & EXPORT BUTTONS -------------------- -->
-    <div class="search-box">
-        <input type="text" id="searchInput" placeholder="Search by name, class, subject..." onkeyup="searchTable()">
-        <button onclick="exportToExcel()">Export Excel</button>
-        <button onclick="document.getElementById('excelFile').click()">Import Excel</button>
-        <button onclick="window.print()">Print</button>
-        <input type="file" id="excelFile" accept=".xlsx" style="display:none" onchange="importFromExcel(event)">
-    </div>
-
     <div class="form-box">
         <h3>Add Exam Result</h3>
 
         <select id="examYear"></select>
+
         <select id="examTerm">
             <option value="">Select Term</option>
             <option value="Term 1">Term 1</option>
@@ -79,18 +115,29 @@ tr:hover { background:#c3edc5; }
             <option value="Term 3">Term 3</option>
         </select>
 
-        <select id="examClass" onchange="loadStudents()">
-            <option value="">Select Class</option>
-        </select>
-        <select id="examStudent">
-            <option value="">Select Student</option>
-        </select>
-        <select id="examSubject">
-            <option value="">Select Subject</option>
-        </select>
+        <select id="examClass" onchange="loadStudents()"></select>
+        <select id="examStudent"></select>
+        <select id="examSubject"></select>
 
-        <input type="number" id="examScore" placeholder="Score/Marks">
+        <input type="number" id="examScore" placeholder="Score">
         <button onclick="addResult()">Add Result</button>
+    </div>
+
+    <!-- SEARCH + EXCEL + PRINT TOOLS -->
+    <div class="tools">
+        <input type="text" id="searchInput" placeholder="Search..." onkeyup="searchTable()">
+        <button onclick="exportExcel()">Export to Excel</button>
+        <button onclick="document.getElementById('excelFile').click()">Import Excel</button>
+        <button onclick="window.print()">Print</button>
+        <input type="file" id="excelFile" style="display:none" accept=".xlsx,.xls" onchange="importExcel()">
+    </div>
+
+    <!-- PRINT HEADER -->
+    <div id="printHeader">
+        <h2>NYAMBUNWA ACADEMY</h2>
+        <h3>Examinations & Results Report</h3>
+        <p id="printInfo"></p>
+        <hr>
     </div>
 
     <table id="resultsTable">
@@ -115,90 +162,96 @@ tr:hover { background:#c3edc5; }
 </div>
 
 <script>
-// ============================
 // LOGIN CHECK
-// ============================
 (function(){
-    const loggedInUser = localStorage.getItem("loggedInUser");
-    const userRole = localStorage.getItem("userRole");
-
-    if(!loggedInUser || !userRole){
+    if(!localStorage.getItem("loggedInUser")){
         alert("Please log in first!");
         window.location.href = "login.html";
     }
 })();
 
-// =====================================
-// GENERATE YEARS
-// =====================================
-function loadYears() {
+// YEARS
+function loadYears(){
     const yearSelect = document.getElementById("examYear");
     const now = new Date().getFullYear();
     yearSelect.innerHTML = `<option value="">Select Year</option>`;
-    for (let y = 2020; y <= now; y++) {
-        yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+    for(let y = 2020; y <= now; y++){
+        yearSelect.innerHTML += `<option>${y}</option>`;
     }
 }
 
-// ==========================
-// LOAD CLASSES
-// ==========================
-function loadClasses() {
-    const classSelect = document.getElementById("examClass");
-    classSelect.innerHTML = `<option value="">Select Class</option>`;
-
-    db.ref("classes").once("value", snap => {
-        snap.forEach(cls => {
-            classSelect.innerHTML += `<option value="${cls.val().name}">${cls.val().name}</option>`;
+// CLASSES
+function loadClasses(){
+    const c = document.getElementById("examClass");
+    c.innerHTML = `<option value="">Select Class</option>`;
+    db.ref("classes").once("value", snap=>{
+        snap.forEach(cls=>{
+            c.innerHTML += `<option>${cls.val().name}</option>`;
         });
     });
 }
 
-// ==========================
-// LOAD STUDENTS & SUBJECTS
-// ==========================
-function loadStudents() {
-    const className = document.getElementById("examClass").value;
-    const studentSelect = document.getElementById("examStudent");
-    const subjectSelect = document.getElementById("examSubject");
+// STUDENTS & SUBJECTS
+function loadStudents(){
+    const className = examClass.value;
+    examStudent.innerHTML = `<option value="">Select Student</option>`;
+    examSubject.innerHTML = `<option value="">Select Subject</option>`;
+    if(!className) return;
 
-    studentSelect.innerHTML = `<option value="">Select Student</option>`;
-    subjectSelect.innerHTML = `<option value="">Select Subject</option>`;
+    db.ref("students").orderByChild("class").equalTo(className).once("value", snap=>{
+        snap.forEach(st=>{
+            examStudent.innerHTML += `<option value="${st.key}">${st.val().name}</option>`;
+        });
+    });
 
-    if (!className) return;
-
-    db.ref("students")
-      .orderByChild("class")
-      .equalTo(className)
-      .once("value", snap => {
-          snap.forEach(student => {
-              studentSelect.innerHTML += `<option value="${student.key}">${student.val().name}</option>`;
-          });
-      });
-
-    db.ref("classes")
-      .orderByChild("name")
-      .equalTo(className)
-      .once("value", snap => {
-          snap.forEach(cls => {
-              const subjects = cls.val().subjects || [];
-              subjects.forEach(sub => {
-                  subjectSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
-              });
-          });
-      });
+    db.ref("classes").orderByChild("name").equalTo(className).once("value", snap=>{
+        snap.forEach(c=>{
+            (c.val().subjects || []).forEach(sub=>{
+                examSubject.innerHTML += `<option>${sub}</option>`;
+            });
+        });
+    });
 }
 
-// ==========================
-// LOAD RESULTS
-// ==========================
-function loadResults() {
-    const tbody = document.querySelector("#resultsTable tbody");
-    tbody.innerHTML = "";
+// ADD RESULT
+function addResult(){
+    let year = examYear.value;
+    let term = examTerm.value;
+    let cls = examClass.value;
+    let studentID = examStudent.value;
+    let subject = examSubject.value;
+    let score = examScore.value;
 
-    db.ref("results").once("value", snap => {
-        snap.forEach(res => {
-            const r = res.val();
+    if(!year || !term || !cls || !studentID || !subject || !score){
+        return alert("Fill all fields");
+    }
+
+    db.ref("students/"+studentID).once("value", s=>{
+        let studentName = s.val().name;
+        db.ref("results").push({
+            year, term, class: cls, studentID, studentName, subject, score
+        }, ()=>{
+            examScore.value="";
+            loadResults();
+        });
+    });
+}
+
+// DELETE
+function deleteResult(key){
+    if(confirm("Delete?")){
+        db.ref("results/"+key).remove(()=>loadResults());
+    }
+}
+
+// LOAD RESULTS
+function loadResults(){
+    let tbody = document.querySelector("#resultsTable tbody");
+    tbody.innerHTML="";
+
+    db.ref("results").once("value", snap=>{
+        snap.forEach(res=>{
+            let r = res.val();
             tbody.innerHTML += `
                 <tr>
                     <td>${r.year}</td>
@@ -211,120 +264,70 @@ function loadResults() {
                 </tr>`;
         });
     });
+
+    updatePrintInfo();
 }
 
-// ==========================
-// ADD RESULT
-// ==========================
-function addResult() {
-    const year = document.getElementById("examYear").value;
-    const term = document.getElementById("examTerm").value;
-    const cls = document.getElementById("examClass").value;
-    const studentID = document.getElementById("examStudent").value;
-    const subject = document.getElementById("examSubject").value;
-    const score = document.getElementById("examScore").value.trim();
+// PRINT INFO
+function updatePrintInfo(){
+    document.getElementById("printInfo").innerHTML =
+        `Year: <b>${examYear.value || "All"}</b> &nbsp; 
+         Term: <b>${examTerm.value || "All"}</b> &nbsp; 
+         Class: <b>${examClass.value || "All"}</b>`;
+}
 
-    if (!year || !term || !cls || !studentID || !subject || !score) {
-        return alert("Fill all fields");
-    }
+// SEARCH
+function searchTable(){
+    let filter = searchInput.value.toLowerCase();
+    let rows = document.querySelectorAll("#resultsTable tbody tr");
 
-    db.ref("students/" + studentID).once("value", snap => {
-        const studentName = snap.val().name;
-
-        db.ref("results").push({
-            year,
-            term,
-            class: cls,
-            studentID,
-            studentName,
-            subject,
-            score
-        }, err => {
-            if (!err) {
-                document.getElementById("examScore").value = "";
-                loadResults();
-            }
-        });
+    rows.forEach(r=>{
+        r.style.display = r.innerText.toLowerCase().includes(filter) ? "" : "none";
     });
 }
 
-// ==========================
-// DELETE RESULT
-// ==========================
-function deleteResult(key) {
-    if (confirm("Delete this result?")) {
-        db.ref("results/" + key).remove(() => loadResults());
-    }
-}
-
-// ==============================================================
-// ******* SEARCH FUNCTIONALITY *******
-// ==============================================================
-function searchTable() {
-    const filter = document.getElementById("searchInput").value.toLowerCase();
-    const rows = document.querySelectorAll("#resultsTable tbody tr");
-
-    rows.forEach(row => {
-        const text = row.innerText.toLowerCase();
-        row.style.display = text.includes(filter) ? "" : "none";
-    });
-}
-
-// ==============================================================
-// ******* EXPORT TO EXCEL *******
-// ==============================================================
-function exportToExcel() {
-    const wb = XLSX.utils.book_new();
-    const table = document.getElementById("resultsTable");
-    const ws = XLSX.utils.table_to_sheet(table);
-    XLSX.utils.book_append_sheet(wb, ws, "Results");
+// EXPORT EXCEL
+function exportExcel(){
+    let table = document.getElementById("resultsTable");
+    let wb = XLSX.utils.table_to_book(table, {sheet:"Results"});
     XLSX.writeFile(wb, "Exam_Results.xlsx");
 }
 
-// ==============================================================
-// ******* IMPORT FROM EXCEL *******
-// ==============================================================
-function importFromExcel(evt) {
-    const file = evt.target.files[0];
-    if (!file) return;
+// IMPORT EXCEL
+function importExcel(){
+    let file = document.getElementById("excelFile").files[0];
+    if(!file) return;
 
-    const reader = new FileReader();
-    reader.onload = e => {
-        const data = new Uint8Array(e.target.result);
-        const workbook = XLSX.read(data, { type: 'array' });
+    let reader = new FileReader();
+    reader.onload = e=>{
+        let data = new Uint8Array(e.target.result);
+        let workbook = XLSX.read(data, {type:"array"});
+        let sheet = workbook.Sheets[workbook.SheetNames[0]];
+        let rows = XLSX.utils.sheet_to_json(sheet);
 
-        const sheet = workbook.Sheets[workbook.SheetNames[0]];
-        const rows = XLSX.utils.sheet_to_json(sheet);
-
-        rows.forEach(r => {
-            if (!r.Year || !r.Term || !r.Class || !r.Student || !r.Subject || !r.Score) return;
-
-            db.ref("results").push({
-                year: r.Year,
-                term: r.Term,
-                class: r.Class,
-                studentName: r.Student,
-                subject: r.Subject,
-                score: r.Score
-            });
+        rows.forEach(row=>{
+            if(row.Year && row.Term && row.Class && row.Student && row.Subject && row.Score){
+                db.ref("results").push({
+                    year: row.Year,
+                    term: row.Term,
+                    class: row.Class,
+                    studentName: row.Student,
+                    subject: row.Subject,
+                    score: row.Score
+                });
+            }
         });
 
-        alert("Import successful!");
         loadResults();
     };
     reader.readAsArrayBuffer(file);
 }
 
-// ==========================
-// INIT
-// ==========================
-window.onload = function() {
+window.onload = ()=>{
     loadYears();
     loadClasses();
-    loadStudents();
     loadResults();
 };
-
 </script>
 
 </body>
