@@ -41,8 +41,7 @@ table { width:100%; border-collapse:collapse; margin-top:25px; background:white;
 th, td { padding:12px; border-bottom:1px solid #c5e6cc; text-align:left; }
 th { background:#0b722d; color:white; }
 tr:nth-child(even) { background:#d7f5dd; }
-tr:hover { background:#c3edc5; }
-.delete-btn { background:red; padding:5px 12px; color:white; border:none; border-radius:4px; cursor:pointer; }
+tr:hover { background:#c3edc5; cursor:pointer; }
 .back-btn { margin-top:30px; text-align:center; }
 .back-btn a { text-decoration:none; background:#064d1a; color:white; padding:10px 20px; border-radius:6px; font-size:18px; }
 
@@ -50,6 +49,7 @@ tr:hover { background:#c3edc5; }
 .search-box { margin:20px 0; }
 .search-box input { width:250px; padding:10px; border:1px solid #0b722d; border-radius:6px; font-size:15px; }
 #generateReportBtn { margin-bottom:20px; }
+.selected-row { background:#c3edc5 !important; }
 </style>
 </head>
 
@@ -128,7 +128,7 @@ tr:hover { background:#c3edc5; }
 })();
 
 // ==========================
-// HELPER: REMARKS
+// REMARKS FUNCTION
 // ==========================
 function getRemarks(score) {
     score = Number(score);
@@ -211,23 +211,6 @@ function addResult() {
 }
 
 // ==========================
-// DELETE RESULT
-// ==========================
-function deleteResult(key) {
-    if(confirm("Delete this result?")) db.ref("results/"+key).remove(()=>loadResults());
-}
-
-// ==========================
-// SEARCH TABLE
-// ==========================
-function searchTable() {
-    const filter = document.getElementById("searchInput").value.toLowerCase();
-    document.querySelectorAll("#resultsTable tbody tr").forEach(row=>{
-        row.style.display = row.innerText.toLowerCase().includes(filter) ? "" : "none";
-    });
-}
-
-// ==========================
 // EXPORT / IMPORT EXCEL
 // ==========================
 function exportToExcel() {
@@ -265,8 +248,8 @@ function importFromExcel(evt) {
 let selectedStudentID = null;
 
 function selectTableRow(row, studentID){
-    document.querySelectorAll("#resultsTable tbody tr").forEach(r=>r.style.backgroundColor='');
-    row.style.backgroundColor = '#c3edc5';
+    document.querySelectorAll("#resultsTable tbody tr").forEach(r=>r.classList.remove('selected-row'));
+    row.classList.add('selected-row');
     selectedStudentID = studentID;
 }
 
@@ -280,7 +263,12 @@ function loadResults(){
             if(!studentResults[r.studentID]) studentResults[r.studentID] = [];
             studentResults[r.studentID].push(r);
         });
-        Object.keys(studentResults).forEach(studentID=>{
+        const sortedIDs = Object.keys(studentResults).sort((a,b)=>{
+            const avgA = studentResults[a].reduce((sum,r)=>sum+Number(r.score),0)/studentResults[a].length;
+            const avgB = studentResults[b].reduce((sum,r)=>sum+Number(r.score),0)/studentResults[b].length;
+            return avgB - avgA; // descending
+        });
+        sortedIDs.forEach(studentID=>{
             const results = studentResults[studentID];
             const studentName = results[0].studentName;
             const avg = results.reduce((sum,r)=>sum+Number(r.score),0)/results.length;
@@ -303,23 +291,21 @@ function loadResults(){
 // ==========================
 // GENERATE STUDENT REPORT
 // ==========================
-document.getElementById("generateReportBtn").onclick = function(){
+document.getElementById("generateReportBtn").onclick = function() {
     if(!selectedStudentID) return alert("Select a student from the table first!");
-    generateReportFromID(selectedStudentID);
-}
+    db.ref("students/" + selectedStudentID).once("value")
+      .then(studentSnap => {
+        if(!studentSnap.exists()) return alert("Student not found");
+        const studentName = studentSnap.val().name;
+        const studentClass = studentSnap.val().class;
 
-function generateReportFromID(studentID){
-    db.ref("students/"+studentID).once("value", snap=>{
-        if(!snap.exists()) return alert("Student not found");
-        const studentName = snap.val().name;
-        const studentClass = snap.val().class;
-
-        db.ref("results").orderByChild("studentID").equalTo(studentID).once("value", snap2=>{
+        db.ref("results").orderByChild("studentID").equalTo(selectedStudentID).once("value")
+          .then(resultsSnap => {
             const results = [];
-            snap2.forEach(res=>results.push(res.val()));
-            if(results.length===0) return alert("No results for this student");
-            const total = results.reduce((sum,r)=>sum+Number(r.score),0);
-            const avg = total/results.length;
+            resultsSnap.forEach(r => results.push(r.val()));
+            if(results.length === 0) return alert("No results for this student");
+
+            const avg = results.reduce((sum,r)=>sum+Number(r.score),0)/results.length;
             const generalRemarks = getRemarks(avg);
 
             let printWindow = window.open('','height=800,width=800');
@@ -329,7 +315,6 @@ function generateReportFromID(studentID){
 body{font-family:"Segoe UI",sans-serif;margin:40px;color:#064d1a;}
 h2,h3,h4{text-align:center;margin:0;}
 h2{color:#0b722d;}
-h3{margin-top:5px;}
 table{width:100%;border-collapse:collapse;margin-top:20px;}
 table, th, td{border:1px solid #0b722d;}
 th, td{padding:12px;text-align:center;}
@@ -359,7 +344,18 @@ ${results.map(r=>`<tr><td>${r.subject}</td><td>${r.score}</td><td>${getRemarks(r
             printWindow.document.write(html);
             printWindow.document.close();
             printWindow.print();
-        });
+          });
+      })
+      .catch(err => alert("Error generating report: "+err));
+};
+
+// ==========================
+// SEARCH TABLE
+// ==========================
+function searchTable() {
+    const filter = document.getElementById("searchInput").value.toLowerCase();
+    document.querySelectorAll("#resultsTable tbody tr").forEach(row=>{
+        row.style.display = row.innerText.toLowerCase().includes(filter) ? "" : "none";
     });
 }
 
