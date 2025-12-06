@@ -13,7 +13,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
-  const firebaseConfig = {
+const firebaseConfig = {
     apiKey: "AIzaSyBZWRqW1a0qLyx76QZapberiE4Mio97OqI",
     authDomain: "school-management-system-24753.firebaseapp.com",
     projectId: "school-management-system-24753",
@@ -21,10 +21,10 @@
     messagingSenderId: "98011038194",
     appId: "1:98011038194:web:b54b1b91e543127347ab6b",
     measurementId: "G-7M9W1CBJD9"
-  };
+};
 
-  const app = firebase.initializeApp(firebaseConfig);
-  const db = firebase.database();
+const app = firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 </script>
 
 <style>
@@ -129,6 +129,12 @@ tr:hover { background:#c3edc5; }
         <input type="file" id="excelFile" accept=".xlsx" style="display:none" onchange="importFromExcel(event)">
     </div>
 
+    <!-- -------------------- GENERATE STUDENT REPORT -------------------- -->
+    <div class="search-box">
+        <select id="reportStudentSelect"></select>
+        <button onclick="generateReport()">Generate Report</button>
+    </div>
+
     <!-- -------------------- ADD EXAM RESULT -------------------- -->
     <div class="form-box">
         <h3>Add Exam Result</h3>
@@ -192,46 +198,34 @@ tr:hover { background:#c3edc5; }
     }
 })();
 
-// =====================================
-// GENERATE YEARS
-// =====================================
+// ==========================
+// GENERATE YEARS & SEARCH FILTERS
+// ==========================
 function loadYears() {
     const yearSelect = document.getElementById("examYear");
-    const now = new Date().getFullYear();
-    yearSelect.innerHTML = `<option value="">Select Year</option>`;
-    for (let y = 2020; y <= now; y++) {
-        yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
-    }
-}
-
-// =====================================
-// POPULATE SEARCH FILTERS
-// =====================================
-function populateSearchFilters() {
     const searchYear = document.getElementById("searchYear");
     const now = new Date().getFullYear();
+    yearSelect.innerHTML = `<option value="">Select Year</option>`;
+    searchYear.innerHTML = `<option value="">All Years</option>`;
     for (let y = 2020; y <= now; y++) {
+        yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
         searchYear.innerHTML += `<option value="${y}">${y}</option>`;
     }
-
-    const searchClass = document.getElementById("searchClass");
-    db.ref("classes").once("value", snap => {
-        snap.forEach(cls => {
-            searchClass.innerHTML += `<option value="${cls.val().name}">${cls.val().name}</option>`;
-        });
-    });
 }
 
 // ==========================
-// LOAD CLASSES
+// LOAD CLASSES & SEARCH FILTER
 // ==========================
 function loadClasses() {
     const classSelect = document.getElementById("examClass");
+    const searchClass = document.getElementById("searchClass");
     classSelect.innerHTML = `<option value="">Select Class</option>`;
+    searchClass.innerHTML = `<option value="">All Classes</option>`;
 
     db.ref("classes").once("value", snap => {
         snap.forEach(cls => {
             classSelect.innerHTML += `<option value="${cls.val().name}">${cls.val().name}</option>`;
+            searchClass.innerHTML += `<option value="${cls.val().name}">${cls.val().name}</option>`;
         });
     });
 }
@@ -269,6 +263,19 @@ function loadStudents() {
               });
           });
       });
+}
+
+// ==========================
+// POPULATE REPORT STUDENT DROPDOWN
+// ==========================
+function populateReportStudentDropdown() {
+    const select = document.getElementById("reportStudentSelect");
+    select.innerHTML = `<option value="">Select Student for Report</option>`;
+    db.ref("students").once("value", snap => {
+        snap.forEach(student => {
+            select.innerHTML += `<option value="${student.key}">${student.val().name}</option>`;
+        });
+    });
 }
 
 // ==========================
@@ -384,7 +391,7 @@ function searchTable() {
 }
 
 // ==========================
-// EXPORT TO EXCEL
+// EXPORT/IMPORT EXCEL
 // ==========================
 function exportToExcel() {
     const wb = XLSX.utils.book_new();
@@ -394,24 +401,18 @@ function exportToExcel() {
     XLSX.writeFile(wb, "Exam_Results.xlsx");
 }
 
-// ==========================
-// IMPORT FROM EXCEL
-// ==========================
 function importFromExcel(evt) {
     const file = evt.target.files[0];
     if (!file) return;
-
     const reader = new FileReader();
     reader.onload = e => {
         const data = new Uint8Array(e.target.result);
         const workbook = XLSX.read(data, { type: 'array' });
-
         const sheet = workbook.Sheets[workbook.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(sheet);
 
         rows.forEach(r => {
             if (!r.Year || !r.Term || !r.Class || !r.Student || !r.Subject || !r.Score) return;
-
             db.ref("results").push({
                 year: r.Year,
                 term: r.Term,
@@ -429,7 +430,7 @@ function importFromExcel(evt) {
 }
 
 // ==========================
-// PREPARE PRINT SORTED BY AVERAGE
+// PRINT SORTED BY AVERAGE
 // ==========================
 function preparePrint() {
     const rows = document.querySelectorAll("#resultsTable tbody tr");
@@ -455,36 +456,120 @@ function preparePrint() {
         });
     });
 
-    const sorted = Object.keys(students).map(name => {
+    // Compute average and sort
+    const studentList = Object.keys(students).map(name=>{
         const s = students[name];
-        return { name, avg: s.total / s.count, subjects: s.subjects };
-    }).sort((a,b) => b.avg - a.avg);
+        s.avg = s.total / s.count;
+        return { name, ...s };
+    });
+    studentList.sort((a,b)=>b.avg - a.avg);
 
-    const tbody = document.querySelector("#resultsTable tbody");
-    tbody.innerHTML = "";
-    sorted.forEach(student => {
-        student.subjects.forEach(s => {
-            tbody.innerHTML += `
-                <tr>
-                    <td>${s.year}</td>
-                    <td>${s.term}</td>
-                    <td>${s.class}</td>
-                    <td>${student.name}</td>
-                    <td>${s.subject}</td>
-                    <td>${s.score}</td>
-                    <td class="print-remarks">${s.remarks}</td>
-                    <td class="no-print"></td>
-                </tr>`;
+    // Prepare print
+    const printWindow = window.open('', '', 'height=800,width=1000');
+    let html = `<html><head><title>Results Sheet</title>
+        <style>
+            body{font-family:"Segoe UI",sans-serif;}
+            h2,h3{ text-align:center; margin:0;}
+            h2{color:#0b722d;}
+            h3{color:#064d1a;}
+            table{width:100%;border-collapse:collapse;margin-top:20px;}
+            th,td{border:1px solid #0b722d;padding:10px;text-align:center;}
+            th{background:#0b722d;color:white;}
+            tr:nth-child(even){background:#d7f5dd;}
+            tr:nth-child(odd){background:#e6f9e8;}
+        </style></head><body>`;
+    html += `<h2>NYAMBUNWA ACADEMY</h2><h3>Results Sheet</h3>`;
+    html += `<table><thead><tr>
+                <th>Student</th><th>Year</th><th>Term</th><th>Class</th>
+                <th>Subject</th><th>Score</th><th>Remarks</th>
+            </tr></thead><tbody>`;
+    studentList.forEach(s=>{
+        s.subjects.forEach(sub=>{
+            html += `<tr>
+                        <td>${s.name}</td>
+                        <td>${sub.year}</td>
+                        <td>${sub.term}</td>
+                        <td>${sub.class}</td>
+                        <td>${sub.subject}</td>
+                        <td>${sub.score}</td>
+                        <td>${sub.remarks}</td>
+                    </tr>`;
         });
     });
+    html += `</tbody></table></body></html>`;
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.print();
+}
 
-    const year = document.getElementById("searchYear").value || "All Years";
-    const term = document.getElementById("searchTerm").value || "All Terms";
-    const cls = document.getElementById("searchClass").value || "All Classes";
-    document.getElementById("print-info").innerText = `Year: ${year} | Term: ${term} | Class: ${cls}`;
+// ==========================
+// GENERATE STUDENT REPORT FORM
+// ==========================
+function generateReport() {
+    const studentID = document.getElementById("reportStudentSelect").value;
+    if (!studentID) return alert("Select a student");
 
-    window.print();
-    loadResults(); // restore original table
+    db.ref("students/" + studentID).once("value", snap => {
+        const studentName = snap.val().name;
+        const studentClass = snap.val().class;
+
+        db.ref("results")
+          .orderByChild("studentID")
+          .equalTo(studentID)
+          .once("value", snap2 => {
+              const results = [];
+              snap2.forEach(res => results.push(res.val()));
+              if(results.length === 0) return alert("No results for this student");
+
+              const total = results.reduce((sum,r)=>sum+Number(r.score),0);
+              const avg = total / results.length;
+              const generalRemarks = getRemarks(avg);
+
+              let printWindow = window.open('', '', 'height=800,width=800');
+              let html = `
+                <html><head><title>Student Report - ${studentName}</title>
+                <style>
+                    body{font-family:"Segoe UI",sans-serif;margin:40px;color:#064d1a;}
+                    h2,h3,h4{text-align:center;margin:0;}
+                    h2{color:#0b722d;}
+                    h3{margin-top:5px;}
+                    table{width:100%;border-collapse:collapse;margin-top:20px;}
+                    table, th, td{border:1px solid #0b722d;}
+                    th, td{padding:12px;text-align:center;}
+                    th{background:#0b722d;color:white;}
+                    tr:nth-child(even){background:#d7f5dd;}
+                    tr:nth-child(odd){background:#e6f9e8;}
+                    .remarks{margin-top:20px;font-weight:bold;}
+                    .signatures{margin-top:60px;display:flex;justify-content:space-between;}
+                    .signatures div{text-align:center;}
+                </style></head><body>
+                <h2>NYAMBUNWA ACADEMY</h2>
+                <h3>P.O BOX 742-40200 KISII, KENYA</h3>
+                <h3>REPORT FORM</h3>
+                <h4>Student: ${studentName}</h4>
+                <h4>Class: ${studentClass}</h4>
+                <h4>Year: ${results[0].year} | Term: ${results[0].term}</h4>
+                <table><thead><tr>
+                    <th>Subject</th><th>Score</th><th>Remarks</th>
+                </tr></thead><tbody>
+                ${results.map(r=>`
+                    <tr>
+                        <td>${r.subject}</td>
+                        <td>${r.score}</td>
+                        <td>${getRemarks(r.score)}</td>
+                    </tr>`).join('')}
+                </tbody></table>
+                <div class="remarks">Average Score: ${avg.toFixed(2)} | General Remarks: ${generalRemarks}</div>
+                <div class="signatures">
+                    <div>___________________<br>Class Teacher</div>
+                    <div>___________________<br>HeadTeacher</div>
+                </div>
+                </body></html>`;
+              printWindow.document.write(html);
+              printWindow.document.close();
+              printWindow.print();
+          });
+    });
 }
 
 // ==========================
@@ -495,7 +580,7 @@ window.onload = function() {
     loadClasses();
     loadStudents();
     loadResults();
-    populateSearchFilters();
+    populateReportStudentDropdown();
 };
 </script>
 
