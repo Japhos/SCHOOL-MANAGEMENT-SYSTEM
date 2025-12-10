@@ -120,13 +120,15 @@ function showReport(){
 
     db.ref('students/'+studentKey).once('value', s=>{
         const student = s.val();
-        db.ref('marks').orderByChild('reg').equalTo(student.adm).once('value', mSnap=>{
+
+        // ✅ Fetch all marks and filter manually to avoid type mismatch
+        db.ref('marks').once('value', snap=>{
             const marks = [];
-            if(mSnap.exists()){
-                mSnap.forEach(ms=>{
-                    marks.push(ms.val());
-                });
-            }
+            snap.forEach(m=>{
+                if(String(m.val().reg).trim() === String(student.adm).trim()) {
+                    marks.push(m.val());
+                }
+            });
 
             function remark(mark){
                 if(mark>=80) return 'Excellent';
