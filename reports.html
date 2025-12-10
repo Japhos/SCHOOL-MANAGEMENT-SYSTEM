@@ -66,9 +66,9 @@ var firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 var db = firebase.database();
 
-// ============================
-// Load Classes into Dropdown
-// ============================
+// ------------------------
+// Load Classes
+// ------------------------
 function loadReportClasses(){
     const classSelect = document.getElementById("reportClass");
     classSelect.innerHTML = '<option value="">Select Class</option>';
@@ -83,47 +83,51 @@ function loadReportClasses(){
     });
 }
 
-// ============================
-// Load Students into Dropdown
-// ============================
+// ------------------------
+// Load Students (names only)
+// ------------------------
 function loadReportStudents(){
     const cls = document.getElementById("reportClass").value;
     const studentSelect = document.getElementById("reportStudent");
     studentSelect.innerHTML = '<option value="">Select Student</option>';
     if(!cls) return;
+
     db.ref('students').orderByChild('class').equalTo(cls).once('value', snap=>{
         snap.forEach(s=>{
             const option = document.createElement('option');
-            option.value = s.key;
-            option.textContent = s.val().name + ' (' + s.val().adm + ')';
+            option.value = s.key; // store key for lookup
+            option.textContent = s.val().name; // only show name
             studentSelect.appendChild(option);
         });
     });
 }
 
-// ============================
+// ------------------------
 // Escape HTML
-// ============================
+// ------------------------
 function escapeHtml(text){ 
-    return text.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+    return text ? text.toString().replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])) : '';
 }
 
-// ============================
+// ------------------------
 // Show Report
-// ============================
+// ------------------------
 function showReport(){
     const cls = document.getElementById("reportClass").value;
     const studentKey = document.getElementById("reportStudent").value;
+
     if(!cls || !studentKey){ alert("Select class and student"); return; }
 
     db.ref('students/'+studentKey).once('value', s=>{
         const student = s.val();
         db.ref('marks').orderByChild('reg').equalTo(student.adm).once('value', mSnap=>{
-            if(!mSnap.exists()){ alert('No marks for this student!'); return; }
             const marks = [];
-            mSnap.forEach(ms=>{
-                marks.push(ms.val());
-            });
+            if(mSnap.exists()){
+                mSnap.forEach(ms=>{
+                    marks.push(ms.val());
+                });
+            }
+
             function remark(mark){
                 if(mark>=80) return 'Excellent';
                 if(mark>=70) return 'Very Good';
@@ -131,16 +135,19 @@ function showReport(){
                 if(mark>=50) return 'Pass';
                 return 'Fail';
             }
+
             const total = marks.reduce((sum,m)=>sum+Number(m.mark),0);
-            const avg = (total/marks.length).toFixed(2);
+            const avg = marks.length ? (total/marks.length).toFixed(2) : 0;
             let generalRemark='';
             if(avg>=80) generalRemark='Excellent Performance';
             else if(avg>=70) generalRemark='Very Good Performance';
             else if(avg>=60) generalRemark='Good Performance';
             else if(avg>=50) generalRemark='Fair Performance';
             else generalRemark='Poor Performance';
-            
-            let rows = marks.map(m=>`<tr><td>${escapeHtml(m.subj)}</td><td>${escapeHtml(m.mark)}</td><td>${escapeHtml(remark(m.mark))}</td></tr>`).join('');
+
+            let rows = marks.length 
+                ? marks.map(m=>`<tr><td>${escapeHtml(m.subj)}</td><td>${escapeHtml(m.mark)}</td><td>${escapeHtml(remark(m.mark))}</td></tr>`).join('')
+                : '<tr><td colspan="3" style="text-align:center">No marks available</td></tr>';
 
             const html = `<div class="report">
                 <h2>NYAMBUNWA ACADEMY</h2>
@@ -164,22 +171,22 @@ function showReport(){
     });
 }
 
-// ============================
+// ------------------------
 // Back to Main
-// ============================
+// ------------------------
 function backToMain(){
     document.getElementById("reportArea").innerHTML='';
     document.getElementById("mainContent").style.display='block';
 }
 
-// ============================
+// ------------------------
 // Event Listeners
-// ============================
+// ------------------------
 document.getElementById("reportClass").addEventListener('change', loadReportStudents);
 
-// ============================
+// ------------------------
 // INIT
-// ============================
+// ------------------------
 window.onload = function(){
     loadReportClasses();
 };
