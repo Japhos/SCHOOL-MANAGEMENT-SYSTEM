@@ -17,18 +17,26 @@ header{background:#0b722d;color:white;padding:16px;text-align:center;font-size:2
 select,input{width:100%;padding:10px;margin:6px 0 14px 0;border:1px solid #0b722d;border-radius:6px;font-size:15px;}
 button{background:#0b722d;color:white;border:none;padding:12px 20px;font-size:16px;border-radius:6px;cursor:pointer;margin:5px;}
 button:hover{background:#095a24;}
-.report{border:2px solid #0b722d;padding:20px;margin-top:20px;background:white;border-radius:10px;}
+.report{border:2px solid #0b722d;padding:20px;margin-top:20px;background:white;border-radius:10px;max-width:800px;margin-left:auto;margin-right:auto;}
 .report h2,h3{text-align:center;color:#064d1a;margin:4px 0;}
-table{width:100%;border-collapse:collapse;margin-top:15px;}
+table{width:100%;border-collapse:collapse;margin-top:15px;font-size:14px;}
 th,td{border:1px solid #064d1a;padding:8px;text-align:left;}
 th{background:#0b722d;color:white;}
-.signature{display:flex;justify-content:space-between;margin-top:20px;}
+.signature{display:flex;justify-content:space-between;margin-top:40px;font-size:14px;}
 .print-btn{margin-top:10px;background:#0b722d;color:white;padding:10px 18px;border:none;border-radius:6px;cursor:pointer;}
 .print-btn:hover{background:#064d1a;}
+
+/* ===========================
+   A4 Print Layout
+=========================== */
 @media print{
+    body{margin:0; padding:0;}
     body *{visibility:hidden;}
-    .report,.report *{visibility:visible;}
-    .report{position:absolute;top:0;left:0;width:100%;}
+    .report, .report *{visibility:visible;}
+    .report{position:absolute;top:0;left:0;width:210mm; height:297mm; padding:30mm 20mm 20mm 20mm; box-sizing:border-box;}
+    .report table{page-break-inside:auto;}
+    .report tr{page-break-inside:avoid; page-break-after:auto;}
+    .report h2,h3,p,table,th,td,div{font-size:14pt;}
 }
 </style>
 </head>
@@ -95,8 +103,8 @@ function loadReportStudents(){
     db.ref('students').orderByChild('class').equalTo(cls).once('value', snap=>{
         snap.forEach(s=>{
             const option = document.createElement('option');
-            option.value = s.key; // store key for lookup
-            option.textContent = s.val().name; // only show name
+            option.value = s.key;
+            option.textContent = s.val().name;
             studentSelect.appendChild(option);
         });
     });
@@ -121,7 +129,7 @@ function showReport(){
     db.ref('students/'+studentKey).once('value', s=>{
         const student = s.val();
 
-        // ✅ Fetch all marks and filter manually to avoid type mismatch
+        // Fetch all marks and filter manually to avoid type mismatch
         db.ref('marks').once('value', snap=>{
             const marks = [];
             snap.forEach(m=>{
