@@ -9,7 +9,7 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
-<!-- EXCEL -->
+<!-- EXCEL (SheetJS) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
 <script>
@@ -46,21 +46,53 @@ tr:hover { background:#c3edc5; }
 .back-btn { margin-top:30px; text-align:center; }
 .back-btn a { text-decoration:none; background:#064d1a; color:white; padding:10px 20px; border-radius:6px; font-size:18px; }
 
+/* SEARCH BOX */
 .search-box { margin:20px 0; display:flex; flex-wrap:wrap; gap:10px; }
 .search-box input, .search-box select { width:auto; flex:1; min-width:150px; }
 
+/* PRINT HEADER */
 #print-header { display:none; text-align:center; margin-bottom:20px; }
 #print-header h2 { margin:0; font-size:28px; color:#0b722d; }
 #print-header h3 { margin:0; font-size:22px; color:#064d1a; }
 #print-header h4 { margin:0; font-size:18px; color:#064d1a; margin-top:5px; }
 
+/* REPORT CARD */
+.report { background:white; padding:20px; border-radius:10px; margin-top:20px; box-shadow:0 2px 6px rgba(0,0,0,0.15); }
+.report-header { text-align:center; margin-bottom:15px; }
+.report-header h2 { margin:0; color:#0b722d; }
+.report-header h3 { margin:5px 0; color:#064d1a; }
+.report-header p { margin:2px 0; font-weight:600; }
+
+.signature { display:flex; justify-content:space-between; margin-top:25px; font-weight:bold; }
+.signature div { text-align:center; }
+
+/* ================== PRINT FIX ================== */
 @media print {
-    body { background: white !important; font-family:"Segoe UI"; }
-    .search-box, .form-box, .back-btn, header, .sub-title, .no-print { display:none !important; }
+    body { background: white !important; font-family:"Segoe UI",sans-serif; }
+    .search-box,
+    .form-box,
+    .back-btn,
+    header,
+    .sub-title,
+    .no-print {
+        display: none !important;
+    }
     #print-header { display:block !important; }
-    table { width:100%; border-collapse:collapse; }
-    th, td { border:1px solid #0b722d !important; padding:10px; }
-    th { background:#0b722d !important; color:white !important; }
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        box-shadow: none !important;
+        font-size:14px;
+    }
+    table th, table td {
+        border: 1px solid #0b722d !important;
+        padding: 10px !important;
+    }
+    table th { background: #0b722d !important; color: white !important; text-align: center !important; }
+    table tr:nth-child(even) { background: #d7f5dd !important; }
+    table tr:nth-child(odd) { background: #e6f9e8 !important; }
+    table td { text-align: center !important; }
+    .print-remarks { display: table-cell !important; text-align: center; }
 }
 </style>
 </head>
@@ -72,57 +104,71 @@ tr:hover { background:#c3edc5; }
 
 <div class="container">
 
+    <!-- PRINT HEADER -->
     <div id="print-header">
         <h2>NYAMBUNWA ACADEMY</h2>
         <h3>Results Sheet</h3>
         <h4 id="print-info"></h4>
     </div>
 
-    <!-- SEARCH + BUTTONS -->
+    <!-- -------------------- SEARCH & EXPORT BUTTONS -------------------- -->
     <div class="search-box">
-        <select id="searchYear" onchange="searchTable()"><option value="">All Years</option></select>
+        <select id="searchYear" onchange="searchTable()">
+            <option value="">All Years</option>
+        </select>
         <select id="searchTerm" onchange="searchTable()">
             <option value="">All Terms</option>
-            <option>Term 1</option><option>Term 2</option><option>Term 3</option>
+            <option value="Term 1">Term 1</option>
+            <option value="Term 2">Term 2</option>
+            <option value="Term 3">Term 3</option>
         </select>
-        <select id="searchClass" onchange="searchTable()"><option value="">All Classes</option></select>
+        <select id="searchClass" onchange="searchTable()">
+            <option value="">All Classes</option>
+        </select>
         <input type="text" id="searchStudent" placeholder="Search Student" onkeyup="searchTable()">
         <input type="text" id="searchSubject" placeholder="Search Subject" onkeyup="searchTable()">
-
         <button onclick="exportToExcel()">Export Excel</button>
         <button onclick="document.getElementById('excelFile').click()">Import Excel</button>
         <button onclick="preparePrint()">Print</button>
-        <button onclick="generateReport()">Generate Report</button>
-
         <input type="file" id="excelFile" accept=".xlsx" style="display:none" onchange="importFromExcel(event)">
     </div>
 
-    <!-- ADD EXAM RESULT -->
+    <!-- -------------------- ADD EXAM RESULT -------------------- -->
     <div class="form-box">
         <h3>Add Exam Result</h3>
 
         <select id="examYear"></select>
-
         <select id="examTerm">
             <option value="">Select Term</option>
-            <option>Term 1</option><option>Term 2</option><option>Term 3</option>
+            <option value="Term 1">Term 1</option>
+            <option value="Term 2">Term 2</option>
+            <option value="Term 3">Term 3</option>
         </select>
 
-        <select id="examClass" onchange="loadStudents()"><option value="">Select Class</option></select>
-        <select id="examStudent"><option value="">Select Student</option></select>
-        <select id="examSubject"><option value="">Select Subject</option></select>
+        <select id="examClass" onchange="loadStudents()">
+            <option value="">Select Class</option>
+        </select>
+        <select id="examStudent">
+            <option value="">Select Student</option>
+        </select>
+        <select id="examSubject">
+            <option value="">Select Subject</option>
+        </select>
 
         <input type="number" id="examScore" placeholder="Score/Marks">
-
         <button onclick="addResult()">Add Result</button>
     </div>
 
-    <!-- RESULTS TABLE -->
+    <!-- -------------------- RESULTS TABLE -------------------- -->
     <table id="resultsTable">
         <thead>
             <tr>
-                <th>Year</th><th>Term</th><th>Class</th><th>Student</th>
-                <th>Subject</th><th>Score</th>
+                <th>Year</th>
+                <th>Term</th>
+                <th>Class</th>
+                <th>Student</th>
+                <th>Subject</th>
+                <th>Score</th>
                 <th class="print-remarks">Remarks</th>
                 <th class="no-print">Action</th>
             </tr>
@@ -130,72 +176,94 @@ tr:hover { background:#c3edc5; }
         <tbody></tbody>
     </table>
 
-    <!-- REPORT FORM (NEW) -->
-    <div id="reportForm" style="display:none; background:white; padding:20px; margin-top:40px;
-        border-radius:10px; box-shadow:0 2px 6px rgba(0,0,0,0.15);">
-
-        <div style="text-align:center;">
-            <h2 style="margin:0; color:#0b722d;">NYAMBUNWA ACADEMY</h2>
-            <div>P.O BOX 742-40200 KISII, KENYA</div>
-            <h3 style="margin:5px 0; color:#064d1a;">REPORT FORM</h3>
-            <h4 id="reportStudentName" style="margin-top:10px; color:#064d1a;"></h4>
-        </div>
-
-        <table id="reportTable" style="width:100%; border-collapse:collapse; margin-top:15px;">
-            <thead>
-                <tr>
-                    <th style="border:1px solid #0b722d; padding:8px;">Subject</th>
-                    <th style="border:1px solid #0b722d; padding:8px;">Score</th>
-                    <th style="border:1px solid #0b722d; padding:8px;">Remarks</th>
-                </tr>
-            </thead>
-            <tbody></tbody>
-        </table>
+    <div class="back-btn">
+        <a href="index.html">← Back to Main Menu</a>
     </div>
 
-    <div class="back-btn"><a href="index.html">← Back to Main Menu</a></div>
+    <!-- -------------------- STUDENT REPORT FORM -------------------- -->
+    <div class="form-box">
+        <h3>Generate Student Report</h3>
+        <select id="reportClass" onchange="loadReportStudents()">
+            <option value="">Select Class</option>
+        </select>
+        <select id="reportStudent">
+            <option value="">Select Student</option>
+        </select>
+        <button onclick="showReport()">Show Report</button>
+    </div>
+
+    <div id="reportCard" class="report" style="display:none;"></div>
 
 </div>
 
 <script>
-/* LOGIN CHECK */
+// ============================
+// LOGIN CHECK
+// ============================
 (function(){
-    if(!localStorage.getItem("loggedInUser")){
+    const loggedInUser = localStorage.getItem("loggedInUser");
+    const userRole = localStorage.getItem("userRole");
+
+    if(!loggedInUser || !userRole){
         alert("Please log in first!");
-        location.href="login.html";
+        window.location.href = "login.html";
     }
 })();
 
-/* LOAD YEARS */
+// =====================================
+// GENERATE YEARS
+// =====================================
 function loadYears() {
-    let ySelect = document.getElementById("examYear");
-    let now = new Date().getFullYear();
-    ySelect.innerHTML = `<option value="">Select Year</option>`;
-    for (let y = 2020; y <= now; y++) ySelect.innerHTML += `<option>${y}</option>`;
+    const yearSelect = document.getElementById("examYear");
+    const now = new Date().getFullYear();
+    yearSelect.innerHTML = `<option value="">Select Year</option>`;
+    for (let y = 2020; y <= now; y++) {
+        yearSelect.innerHTML += `<option value="${y}">${y}</option>`;
+    }
 }
 
-/* POPULATE SEARCH FILTERS */
+// =====================================
+// POPULATE SEARCH FILTERS
+// =====================================
 function populateSearchFilters() {
     const searchYear = document.getElementById("searchYear");
     const now = new Date().getFullYear();
-    for (let y = 2020; y <= now; y++) searchYear.innerHTML += `<option>${y}</option>`;
+    for (let y = 2020; y <= now; y++) {
+        searchYear.innerHTML += `<option value="${y}">${y}</option>`;
+    }
 
     const searchClass = document.getElementById("searchClass");
-    db.ref("classes").once("value", snap=>{
-        snap.forEach(cls=> searchClass.innerHTML += `<option>${cls.val().name}</option>`);
+    db.ref("classes").once("value", snap => {
+        snap.forEach(cls => {
+            searchClass.innerHTML += `<option value="${cls.val().name}">${cls.val().name}</option>`;
+        });
+    });
+
+    const reportClass = document.getElementById("reportClass");
+    db.ref("classes").once("value", snap => {
+        snap.forEach(cls => {
+            reportClass.innerHTML += `<option value="${cls.val().name}">${cls.val().name}</option>`;
+        });
     });
 }
 
-/* LOAD CLASSES */
-function loadClasses(){
-    const c = document.getElementById("examClass");
-    c.innerHTML = `<option value="">Select Class</option>`;
-    db.ref("classes").once("value", snap=>{
-        snap.forEach(cls=> c.innerHTML += `<option>${cls.val().name}</option>`);
+// ==========================
+// LOAD CLASSES
+// ==========================
+function loadClasses() {
+    const classSelect = document.getElementById("examClass");
+    classSelect.innerHTML = `<option value="">Select Class</option>`;
+
+    db.ref("classes").once("value", snap => {
+        snap.forEach(cls => {
+            classSelect.innerHTML += `<option value="${cls.val().name}">${cls.val().name}</option>`;
+        });
     });
 }
 
-/* LOAD STUDENTS + SUBJECTS */
+// ==========================
+// LOAD STUDENTS & SUBJECTS
+// ==========================
 function loadStudents() {
     const className = document.getElementById("examClass").value;
     const studentSelect = document.getElementById("examStudent");
@@ -206,189 +274,273 @@ function loadStudents() {
 
     if (!className) return;
 
-    db.ref("students").orderByChild("class").equalTo(className).once("value", snap=>{
-        snap.forEach(s=> studentSelect.innerHTML += `<option value="${s.key}">${s.val().name}</option>`);
-    });
+    db.ref("students")
+      .orderByChild("class")
+      .equalTo(className)
+      .once("value", snap => {
+          snap.forEach(student => {
+              studentSelect.innerHTML += `<option value="${student.key}">${student.val().name}</option>`;
+          });
+      });
 
-    db.ref("classes").orderByChild("name").equalTo(className).once("value", snap=>{
-        snap.forEach(cls=>{
-            (cls.val().subjects || []).forEach(sub=>{
-                subjectSelect.innerHTML += `<option>${sub}</option>`;
-            });
+    db.ref("classes")
+      .orderByChild("name")
+      .equalTo(className)
+      .once("value", snap => {
+          snap.forEach(cls => {
+              const subjects = cls.val().subjects || [];
+              subjects.forEach(sub => {
+                  subjectSelect.innerHTML += `<option value="${sub}">${sub}</option>`;
+              });
+          });
+      });
+}
+
+// ==========================
+// LOAD STUDENTS FOR REPORT
+// ==========================
+function loadReportStudents(){
+    const cls = document.getElementById("reportClass").value;
+    const studentSelect = document.getElementById("reportStudent");
+    studentSelect.innerHTML = `<option value="">Select Student</option>`;
+
+    if(!cls) return;
+
+    db.ref("students").orderByChild("class").equalTo(cls).once("value", snap=>{
+        snap.forEach(s=>{
+            studentSelect.innerHTML += `<option value="${s.key}">${s.val().name}</option>`;
         });
     });
 }
 
-/* REMARKS */
-function getRemarks(score){
+// ==========================
+// GET REMARKS
+// ==========================
+function getRemarks(score) {
     score = Number(score);
-    if(score >= 80) return "Excellent";
-    if(score >= 70) return "Very Good";
-    if(score >= 60) return "Good";
-    if(score >= 50) return "Fair";
+    if (score >= 80) return "Excellent";
+    if (score >= 70) return "Very Good";
+    if (score >= 60) return "Good";
+    if (score >= 50) return "Fair";
     return "Poor";
 }
 
-/* LOAD RESULTS */
-function loadResults(){
+// ==========================
+// LOAD RESULTS
+// ==========================
+function loadResults() {
     const tbody = document.querySelector("#resultsTable tbody");
     tbody.innerHTML = "";
 
-    db.ref("results").once("value", snap=>{
-        snap.forEach(res=>{
+    db.ref("results").once("value", snap => {
+        snap.forEach(res => {
             const r = res.val();
             tbody.innerHTML += `
-            <tr>
-                <td>${r.year}</td><td>${r.term}</td><td>${r.class}</td>
-                <td>${r.studentName}</td><td>${r.subject}</td>
-                <td>${r.score}</td>
-                <td class="print-remarks">${getRemarks(r.score)}</td>
-                <td class="no-print"><button class="delete-btn" onclick="deleteResult('${res.key}')">Delete</button></td>
-            </tr>`;
+                <tr>
+                    <td>${r.year}</td>
+                    <td>${r.term}</td>
+                    <td>${r.class}</td>
+                    <td>${r.studentName}</td>
+                    <td>${r.subject}</td>
+                    <td>${r.score}</td>
+                    <td class="print-remarks">${getRemarks(r.score)}</td>
+                    <td class="no-print"><button class="delete-btn" onclick="deleteResult('${res.key}')">Delete</button></td>
+                </tr>`;
         });
     });
 }
 
-/* ADD RESULT */
-function addResult(){
-    const y = examYear.value, t = examTerm.value, c = examClass.value;
-    const sid = examStudent.value, sub = examSubject.value;
-    const sc = examScore.value;
+// ==========================
+// ADD RESULT
+// ==========================
+function addResult() {
+    const year = document.getElementById("examYear").value;
+    const term = document.getElementById("examTerm").value;
+    const cls = document.getElementById("examClass").value;
+    const studentID = document.getElementById("examStudent").value;
+    const subject = document.getElementById("examSubject").value;
+    const score = document.getElementById("examScore").value.trim();
 
-    if(!y || !t || !c || !sid || !sub || !sc) return alert("Fill all fields");
+    if (!year || !term || !cls || !studentID || !subject || !score) {
+        return alert("Fill all fields");
+    }
 
-    db.ref("students/"+sid).once("value", snap=>{
+    db.ref("students/" + studentID).once("value", snap => {
+        const studentName = snap.val().name;
+
         db.ref("results").push({
-            year: y, term: t, class: c,
-            studentID: sid, studentName: snap.val().name,
-            subject: sub, score: sc
-        }, ()=> loadResults());
+            year,
+            term,
+            class: cls,
+            studentID,
+            studentName,
+            subject,
+            score
+        }, err => {
+            if (!err) {
+                document.getElementById("examScore").value = "";
+                loadResults();
+            }
+        });
     });
 }
 
-/* DELETE RESULT */
-function deleteResult(key){
-    if(confirm("Delete this result?")){
-        db.ref("results/"+key).remove(()=> loadResults());
+// ==========================
+// DELETE RESULT
+// ==========================
+function deleteResult(key) {
+    if (confirm("Delete this result?")) {
+        db.ref("results/" + key).remove(() => loadResults());
     }
 }
 
-/* SEARCH */
-function searchTable(){
-    const yf = searchYear.value.toLowerCase(),
-          tf = searchTerm.value.toLowerCase(),
-          cf = searchClass.value.toLowerCase(),
-          sf = searchStudent.value.toLowerCase(),
-          subf = searchSubject.value.toLowerCase();
+// ==========================
+// SEARCH TABLE
+// ==========================
+function searchTable() {
+    const yearFilter = document.getElementById("searchYear").value.toLowerCase();
+    const termFilter = document.getElementById("searchTerm").value.toLowerCase();
+    const classFilter = document.getElementById("searchClass").value.toLowerCase();
+    const studentFilter = document.getElementById("searchStudent").value.toLowerCase();
+    const subjectFilter = document.getElementById("searchSubject").value.toLowerCase();
 
-    document.querySelectorAll("#resultsTable tbody tr").forEach(r=>{
-        const c = r.querySelectorAll("td");
-        const match =
-            (!yf || c[0].innerText.toLowerCase() === yf) &&
-            (!tf || c[1].innerText.toLowerCase() === tf) &&
-            (!cf || c[2].innerText.toLowerCase() === cf) &&
-            (!sf || c[3].innerText.toLowerCase().includes(sf)) &&
-            (!subf || c[4].innerText.toLowerCase().includes(subf));
+    const rows = document.querySelectorAll("#resultsTable tbody tr");
 
-        r.style.display = match ? "" : "none";
+    rows.forEach(row => {
+        const cells = row.querySelectorAll("td");
+        const year = cells[0].innerText.toLowerCase();
+        const term = cells[1].innerText.toLowerCase();
+        const cls = cells[2].innerText.toLowerCase();
+        const student = cells[3].innerText.toLowerCase();
+        const subject = cells[4].innerText.toLowerCase();
+
+        const match = 
+            (!yearFilter || year === yearFilter) &&
+            (!termFilter || term === termFilter) &&
+            (!classFilter || cls === classFilter) &&
+            (!studentFilter || student.includes(studentFilter)) &&
+            (!subjectFilter || subject.includes(subjectFilter));
+
+        row.style.display = match ? "" : "none";
     });
 }
 
-/* EXPORT */
-function exportToExcel(){
+// ==========================
+// EXPORT TO EXCEL
+// ==========================
+function exportToExcel() {
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.table_to_sheet(resultsTable);
+    const table = document.getElementById("resultsTable");
+    const ws = XLSX.utils.table_to_sheet(table);
     XLSX.utils.book_append_sheet(wb, ws, "Results");
     XLSX.writeFile(wb, "Exam_Results.xlsx");
 }
 
-/* IMPORT */
-function importFromExcel(evt){
+// ==========================
+// IMPORT FROM EXCEL
+// ==========================
+function importFromExcel(evt) {
     const file = evt.target.files[0];
-    const reader = new FileReader();
+    if (!file) return;
 
-    reader.onload = e=>{
-        const rows = XLSX.utils.sheet_to_json(XLSX.read(new Uint8Array(e.target.result), {type:"array"}).Sheets["Sheet1"]);
-        rows.forEach(r=>{
-            if(!r.Year) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, { type: 'array' });
+
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet);
+
+        rows.forEach(r => {
+            if (!r.Year || !r.Term || !r.Class || !r.Student || !r.Subject || !r.Score) return;
+
             db.ref("results").push({
-                year:r.Year, term:r.Term, class:r.Class,
-                studentName:r.Student, subject:r.Subject, score:r.Score
+                year: r.Year,
+                term: r.Term,
+                class: r.Class,
+                studentName: r.Student,
+                subject: r.Subject,
+                score: r.Score
             });
         });
-        loadResults();
+
         alert("Import successful!");
+        loadResults();
     };
     reader.readAsArrayBuffer(file);
 }
 
-/* PRINT */
-function preparePrint(){
-    printInfo.innerText = `Year: ${searchYear.value||"All"} | Term: ${searchTerm.value||"All"} | Class: ${searchClass.value||"All"}`;
-    print();
+// ==========================
+// PREPARE PRINT
+// ==========================
+function preparePrint() {
+    const year = document.getElementById("searchYear").value || "All Years";
+    const term = document.getElementById("searchTerm").value || "All Terms";
+    const cls = document.getElementById("searchClass").value || "All Classes";
+    document.getElementById("print-info").innerText = `Year: ${year} | Term: ${term} | Class: ${cls}`;
+    window.print();
 }
 
-/* GENERATE REPORT */
-function generateReport(){
-    const rows = document.querySelectorAll("#resultsTable tbody tr");
-    let visible = [];
-    let studentName = "";
+// ==========================
+// SHOW STUDENT REPORT
+// ==========================
+function showReport(){
+  const studentID = document.getElementById("reportStudent").value;
+  const reportCard = document.getElementById("reportCard");
+  if(!studentID) return alert("Select a student");
 
-    rows.forEach(r=>{
-        if(r.style.display !== "none"){
-            const c = r.querySelectorAll("td");
-            visible.push({
-                subject:c[4].innerText,
-                score:c[5].innerText,
-                remarks:getRemarks(c[5].innerText)
-            });
-            studentName = c[3].innerText;
-        }
+  db.ref("students/"+studentID).once("value", snap=>{
+    const student = snap.val();
+    const cls = student.class;
+    db.ref("results").orderByChild("studentID").equalTo(studentID).once("value", snap2=>{
+      let rows = '';
+      let total=0;
+      let count=0;
+      snap2.forEach(r=>{
+        const res = r.val();
+        rows += `<tr><td>${res.subject}</td><td>${res.score}</td><td>${getRemarks(res.score)}</td></tr>`;
+        total += Number(res.score);
+        count++;
+      });
+      const average = count ? (total/count).toFixed(2) : 0;
+
+      let generalRemark = '';
+      if(average >= 80) generalRemark = "Excellent performance";
+      else if(average >= 70) generalRemark = "Very Good performance";
+      else if(average >= 60) generalRemark = "Good performance";
+      else if(average >= 50) generalRemark = "Fair performance";
+      else generalRemark = "Needs improvement";
+
+      reportCard.innerHTML = `
+        <div class="report-header">
+          <h2>NYAMBUNWA ACADEMY</h2>
+          <h3>Report Form</h3>
+          <p><strong>Student:</strong> ${student.name}</p>
+          <p><strong>Class:</strong> ${cls}</p>
+          <p><strong>Average Score:</strong> ${average}</p>
+          <p><strong>General Remarks:</strong> ${generalRemark}</p>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Subject</th><th>Score</th><th>Remarks</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="signature">
+          <div>Class Teacher<br>__________________</div>
+          <div>Headteacher<br>__________________</div>
+        </div>
+        <button class="print-btn" onclick="window.print()">Print Report</button>
+      `;
+      reportCard.style.display = "block";
     });
-
-    if(visible.length === 0) return alert("Search first — no data to generate report.");
-
-    reportStudentName.innerText = `STUDENT: ${studentName}`;
-    const tbody = reportTable.querySelector("tbody");
-    tbody.innerHTML = "";
-
-    visible.forEach(v=>{
-        tbody.innerHTML += `
-        <tr>
-            <td style="border:1px solid #0b722d; padding:8px;">${v.subject}</td>
-            <td style="border:1px solid #0b722d; padding:8px;">${v.score}</td>
-            <td style="border:1px solid #0b722d; padding:8px;">${v.remarks}</td>
-        </tr>`;
-    });
-
-    reportForm.style.display = "block";
-    setTimeout(()=> printReport(), 200);
+  });
 }
 
-/* PRINT REPORT ONLY */
-function printReport(){
-    const content = reportForm.innerHTML;
-    const win = window.open("", "PRINT", "height=700,width=900");
-
-    win.document.write(`
-        <html><head><title>Report</title>
-        <style>
-            body { font-family:Segoe UI; padding:20px; }
-            table { width:100%; border-collapse:collapse; margin-top:20px; }
-            th, td { border:1px solid #0b722d; padding:8px; }
-            th { background:#0b722d; color:white; }
-        </style>
-        </head><body>${content}</body></html>
-    `);
-
-    win.document.close();
-    win.focus();
-    win.print();
-    win.close();
-}
-
-/* INIT */
-window.onload = ()=>{
+// ==========================
+// INIT
+// ==========================
+window.onload = function() {
     loadYears();
     loadClasses();
     loadResults();
