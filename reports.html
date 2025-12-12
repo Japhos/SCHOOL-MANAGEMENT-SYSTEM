@@ -17,45 +17,18 @@ header{background:#0b722d;color:white;padding:16px;text-align:center;font-size:2
 select,input{width:100%;padding:10px;margin:6px 0 14px 0;border:1px solid #0b722d;border-radius:6px;font-size:15px;}
 button{background:#0b722d;color:white;border:none;padding:12px 20px;font-size:16px;border-radius:6px;cursor:pointer;margin:5px;}
 button:hover{background:#095a24;}
-.report{border:2px solid #0b722d;padding:20px;margin-top:20px;background:white;border-radius:10px;display:flex;flex-direction:column;justify-content:space-between;}
+.report{border:2px solid #0b722d;padding:20px;margin-top:20px;background:white;border-radius:10px;}
 .report h2,h3{text-align:center;color:#064d1a;margin:4px 0;}
 table{width:100%;border-collapse:collapse;margin-top:15px;}
 th,td{border:1px solid #064d1a;padding:8px;text-align:left;}
 th{background:#0b722d;color:white;}
-.signature{display:flex;justify-content:space-between;margin-top:50px;}
-.signature div{width:45%; text-align:center;}
-.signature-line{border-top:1px solid #000; margin-top:40px;}
+.signature{display:flex;justify-content:space-between;margin-top:20px;}
 .print-btn{margin-top:10px;background:#0b722d;color:white;padding:10px 18px;border:none;border-radius:6px;cursor:pointer;}
 .print-btn:hover{background:#064d1a;}
-
-/* =================== PRINT =================== */
-@media print {
-    body { background:white; font-family:"Segoe UI",sans-serif; margin:0; padding:0; }
-    #mainContent, button { display:none !important; }
-
-    .report {
-        width: 210mm; /* A4 width */
-        min-height: 297mm; /* A4 height */
-        margin: 0 auto;
-        padding: 20mm;
-        box-sizing: border-box;
-        border: 8px solid #0b722d; /* beautiful green border */
-        border-radius: 10px;
-        page-break-after: always;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between; /* push signatures to bottom */
-    }
-
-    table { page-break-inside:auto; width:100%; }
-    tr { page-break-inside:avoid; page-break-after:auto; }
-    th, td { font-size:12pt; padding:6px; }
-
-    .signature { margin-top:20px; display:flex; justify-content:space-between; }
-    .signature-line { border-top:1px solid #000; margin-top:40px; }
-
-    /* Optional: shrink table font if too many rows */
-    .report table { font-size:11pt; }
+@media print{
+    body *{visibility:hidden;}
+    .report,.report *{visibility:visible;}
+    .report{position:absolute;top:0;left:0;width:100%;}
 }
 </style>
 </head>
@@ -107,7 +80,7 @@ firebase.initializeApp(firebaseConfig);
 var db = firebase.database();
 
 // ============================
-// Load Classes
+// Load Classes into Dropdown
 // ============================
 function loadReportClasses(){
     const classSelect = document.getElementById("reportClass");
@@ -124,7 +97,7 @@ function loadReportClasses(){
 }
 
 // ============================
-// Load Students
+// Load Students into Dropdown
 // ============================
 function loadReportStudents(){
     const cls = document.getElementById("reportClass").value;
@@ -142,7 +115,7 @@ function loadReportStudents(){
 }
 
 // ============================
-// Load Years
+// Load Years into Dropdown
 // ============================
 function loadYears(){
     const yearSelect = document.getElementById("reportYear");
@@ -171,23 +144,33 @@ function showReport() {
     const yearFilter = document.getElementById("reportYear").value;
     const termFilter = document.getElementById("reportTerm").value;
 
-    if (!cls || !studentKey) { alert("Select class and student"); return; }
+    if (!cls || !studentKey) {
+        alert("Select class and student");
+        return;
+    }
 
     db.ref('students/' + studentKey).once('value', s => {
         const student = s.val();
 
         db.ref('results').orderByChild('studentID').equalTo(studentKey).once('value', mSnap => {
-            if (!mSnap.exists()) { alert('No marks for this student!'); return; }
+            if (!mSnap.exists()) {
+                alert('No marks for this student!');
+                return;
+            }
 
             const marks = [];
             mSnap.forEach(ms => {
                 const m = ms.val();
+                // Apply Year and Term filters
                 if((!yearFilter || m.year == yearFilter) && (!termFilter || m.term == termFilter)){
                     marks.push(m);
                 }
             });
 
-            if(marks.length === 0){ alert('No marks found for selected filters!'); return; }
+            if(marks.length === 0){
+                alert('No marks found for selected filters!');
+                return;
+            }
 
             function remark(mark) {
                 mark = Number(mark);
@@ -220,8 +203,8 @@ function showReport() {
                 <p><strong>Average:</strong> ${avg}</p>
                 <p><strong>General Remark:</strong> ${generalRemark}</p>
                 <div class="signature">
-                    <div>Class Teacher<div class="signature-line"></div></div>
-                    <div>Headteacher<div class="signature-line"></div></div>
+                    <div>Class Teacher</div>
+                    <div>Headteacher</div>
                 </div>
                 <button onclick="backToMain()">← Back</button>
                 <button onclick="window.print()">Print Report</button>
