@@ -75,42 +75,6 @@ firebase.initializeApp(firebaseConfig);
 var db = firebase.database();
 
 // ------------------------
-// Load Classes
-// ------------------------
-function loadReportClasses(){
-    const classSelect = document.getElementById("reportClass");
-    classSelect.innerHTML = '<option value="">Select Class</option>';
-    db.ref('classes').once('value', snap=>{
-        snap.forEach(c=>{
-            const cls = c.val().name;
-            const option = document.createElement('option');
-            option.value = cls;
-            option.textContent = cls;
-            classSelect.appendChild(option);
-        });
-    });
-}
-
-// ------------------------
-// Load Students (names only)
-// ------------------------
-function loadReportStudents(){
-    const cls = document.getElementById("reportClass").value;
-    const studentSelect = document.getElementById("reportStudent");
-    studentSelect.innerHTML = '<option value="">Select Student</option>';
-    if(!cls) return;
-
-    db.ref('students').orderByChild('class').equalTo(cls).once('value', snap=>{
-        snap.forEach(s=>{
-            const option = document.createElement('option');
-            option.value = s.key;
-            option.textContent = s.val().name;
-            studentSelect.appendChild(option);
-        });
-    });
-}
-
-// ------------------------
 // Escape HTML
 // ------------------------
 function escapeHtml(text){ 
@@ -118,52 +82,135 @@ function escapeHtml(text){
 }
 
 // ------------------------
-// Show Report
+// Load Classes (with marks only)
 // ------------------------
-function showReport(){
-    const cls = document.getElementById("reportClass").value;
-    const studentKey = document.getElementById("reportStudent").value;
+function loadReportClasses() {
+    const classSelect = document.getElementById("reportClass");
+    classSelect.innerHTML = '<option value="">Select Class</option>';
 
-    if(!cls || !studentKey){ alert("Select class and student"); return; }
+    db.ref('marks').once('value', snap => {
+        const studentRegsWithMarks = new Set();
+        snap.forEach(m => {
+            const reg = (m.val().reg || "").trim().toUpperCase();
+            if (reg) studentRegsWithMarks.add(reg);
+        });
 
-    db.ref('students/'+studentKey).once('value', s=>{
-        const student = s.val();
-
-        // Fetch all marks and filter manually to avoid type mismatch
-        db.ref('marks').once('value', snap=>{
-            const marks = [];
-            snap.forEach(m=>{
-                if(String(m.val().reg).trim() === String(student.adm).trim()) {
-                    marks.push(m.val());
+        db.ref('students').once('value', snapStudents => {
+            const classesSet = new Set();
+            snapStudents.forEach(s => {
+                const student = s.val();
+                const studentReg = (student.adm || "").trim().toUpperCase();
+                if (studentRegsWithMarks.has(studentReg)) {
+                    classesSet.add(student.class);
                 }
             });
 
-            function remark(mark){
-                if(mark>=80) return 'Excellent';
-                if(mark>=70) return 'Very Good';
-                if(mark>=60) return 'Good';
-                if(mark>=50) return 'Pass';
+            Array.from(classesSet).sort().forEach(cls => {
+                const option = document.createElement('option');
+                option.value = cls;
+                option.textContent = cls;
+                classSelect.appendChild(option);
+            });
+        });
+    });
+}
+
+// ------------------------
+// Load Students (with marks only)
+// ------------------------
+function loadReportStudents() {
+    const cls = document.getElementById("reportClass").value;
+    const studentSelect = document.getElementById("reportStudent");
+    studentSelect.innerHTML = '<option value="">Select Student</option>';
+    if (!cls) return;
+
+    db.ref('marks').once('value', snapMarks => {
+        const regsWithMarks = new Set();
+        snapMarks.forEach(m => {
+            const reg = (m.val().reg || "").trim().toUpperCase();
+            if (reg) regsWithMarks.add(reg);
+        });
+
+        db.ref('students').orderByChild('class').equalTo(cls).once('value', snapStudents => {
+            snapStudents.forEach(s => {
+                const student = s.val();
+                const studentReg = (student.adm || "").trim().toUpperCase();
+                if (regsWithMarks.has(studentReg)) {
+                    const option = document.createElement('option');
+                    option.value = s.key;
+                    option.textContent = student.name;
+                    studentSelect.appendChild(option);
+                }
+            });
+        });
+    });
+}
+
+// ------------------------
+// Show Report
+// ------------------------
+function showReport() {
+    const cls = document.getElementById("reportClass").value;
+    const studentKey = document.getElementById("reportStudent").value;
+
+    if (!cls || !studentKey) { 
+        alert("Select class and student"); 
+        return; 
+    }
+
+    db.ref('students/' + studentKey).once('value', s => {
+        const student = s.val();
+        if (!student) {
+            alert("Student data not found");
+            return;
+        }
+
+        db.ref('marks').once('value', snap => {
+            const marks = [];
+            snap.forEach(m => {
+                const markData = m.val();
+                if (!markData) return;
+
+                const markReg = (markData.reg || "").trim().toUpperCase();
+                const studentReg = (student.adm || "").trim().toUpperCase();
+
+                if (markReg === studentReg) {
+                    marks.push(markData);
+                }
+            });
+
+            function remark(mark) {
+                if (mark >= 80) return 'Excellent';
+                if (mark >= 70) return 'Very Good';
+                if (mark >= 60) return 'Good';
+                if (mark >= 50) return 'Pass';
                 return 'Fail';
             }
 
-            const total = marks.reduce((sum,m)=>sum+Number(m.mark),0);
-            const avg = marks.length ? (total/marks.length).toFixed(2) : 0;
-            let generalRemark='';
-            if(avg>=80) generalRemark='Excellent Performance';
-            else if(avg>=70) generalRemark='Very Good Performance';
-            else if(avg>=60) generalRemark='Good Performance';
-            else if(avg>=50) generalRemark='Fair Performance';
-            else generalRemark='Poor Performance';
+            const total = marks.reduce((sum, m) => sum + Number(m.mark || 0), 0);
+            const avg = marks.length ? (total / marks.length).toFixed(2) : 0;
+            let generalRemark = '';
+            if (avg >= 80) generalRemark = 'Excellent Performance';
+            else if (avg >= 70) generalRemark = 'Very Good Performance';
+            else if (avg >= 60) generalRemark = 'Good Performance';
+            else if (avg >= 50) generalRemark = 'Fair Performance';
+            else generalRemark = 'Poor Performance';
 
-            let rows = marks.length 
-                ? marks.map(m=>`<tr><td>${escapeHtml(m.subj)}</td><td>${escapeHtml(m.mark)}</td><td>${escapeHtml(remark(m.mark))}</td></tr>`).join('')
+            let rows = marks.length
+                ? marks.map(m => `<tr><td>${escapeHtml(m.subj)}</td><td>${escapeHtml(m.mark)}</td><td>${escapeHtml(remark(Number(m.mark)))}</td></tr>`).join('')
                 : '<tr><td colspan="3" style="text-align:center">No marks available</td></tr>';
 
-            const html = `<div class="report">
+            const html = `
+            <div class="report">
                 <h2>NYAMBUNWA ACADEMY</h2>
                 <h3>P.O BOX 742-40200, KISII, KENYA</h3>
-                <p><strong>Student:</strong> ${escapeHtml(student.name)} | <strong>Reg No:</strong> ${escapeHtml(student.adm)} | <strong>Class:</strong> ${escapeHtml(student.class)}</p>
-                <table><tr><th>Subject</th><th>Marks</th><th>Remarks</th></tr>${rows}</table>
+                <p><strong>Student:</strong> ${escapeHtml(student.name)} | 
+                   <strong>Reg No:</strong> ${escapeHtml(student.adm)} | 
+                   <strong>Class:</strong> ${escapeHtml(student.class)}</p>
+                <table>
+                    <tr><th>Subject</th><th>Marks</th><th>Remarks</th></tr>
+                    ${rows}
+                </table>
                 <p><strong>Total:</strong> ${total}</p>
                 <p><strong>Average:</strong> ${avg}</p>
                 <p><strong>General Remark:</strong> ${generalRemark}</p>
@@ -175,7 +222,7 @@ function showReport(){
                 <button onclick="window.print()">Print Report</button>
             </div>`;
 
-            document.getElementById("mainContent").style.display="none";
+            document.getElementById("mainContent").style.display = "none";
             document.getElementById("reportArea").innerHTML = html;
         });
     });
@@ -185,8 +232,8 @@ function showReport(){
 // Back to Main
 // ------------------------
 function backToMain(){
-    document.getElementById("reportArea").innerHTML='';
-    document.getElementById("mainContent").style.display='block';
+    document.getElementById("reportArea").innerHTML = '';
+    document.getElementById("mainContent").style.display = 'block';
 }
 
 // ------------------------
