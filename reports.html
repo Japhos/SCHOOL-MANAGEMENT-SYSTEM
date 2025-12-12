@@ -17,7 +17,7 @@ header{background:#0b722d;color:white;padding:16px;text-align:center;font-size:2
 select,input{width:100%;padding:10px;margin:6px 0 14px 0;border:1px solid #0b722d;border-radius:6px;font-size:15px;}
 button{background:#0b722d;color:white;border:none;padding:12px 20px;font-size:16px;border-radius:6px;cursor:pointer;margin:5px;}
 button:hover{background:#095a24;}
-.report{border:2px solid #0b722d;padding:20px;margin-top:20px;background:white;border-radius:10px;}
+.report{border:2px solid #0b722d;padding:20px;margin-top:20px;background:white;border-radius:10px;display:flex;flex-direction:column;justify-content:space-between;}
 .report h2,h3{text-align:center;color:#064d1a;margin:4px 0;}
 table{width:100%;border-collapse:collapse;margin-top:15px;}
 th,td{border:1px solid #064d1a;padding:8px;text-align:left;}
@@ -32,6 +32,7 @@ th{background:#0b722d;color:white;}
 @media print {
     body { background:white; font-family:"Segoe UI",sans-serif; margin:0; padding:0; }
     #mainContent, button { display:none !important; }
+
     .report {
         width: 210mm; /* A4 width */
         min-height: 297mm; /* A4 height */
@@ -40,12 +41,21 @@ th{background:#0b722d;color:white;}
         box-sizing: border-box;
         border:none;
         page-break-after: always;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between; /* push signatures to bottom */
     }
-    table { page-break-inside:auto; }
+
+    table { page-break-inside:auto; width:100%; }
     tr { page-break-inside:avoid; page-break-after:auto; }
     th, td { font-size:12pt; padding:6px; }
-    .signature { margin-top:50px; }
+
+    .signature { margin-top:20px; display:flex; justify-content:space-between; }
     .signature-line { border-top:1px solid #000; margin-top:40px; }
+
+    /* Optional: shrink table font if too many rows */
+    .report table { font-size:11pt; }
+
 }
 </style>
 </head>
