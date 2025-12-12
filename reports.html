@@ -94,8 +94,8 @@ function loadReportStudents(){
     db.ref('students').orderByChild('class').equalTo(cls).once('value', snap=>{
         snap.forEach(s=>{
             const option = document.createElement('option');
-            option.value = s.key;
-            option.textContent = s.val().name + ' (' + s.val().adm + ')';
+            option.value = s.key;  // use Firebase key
+            option.textContent = s.val().name + ' (' + (s.val().adm || 'N/A') + ')';
             studentSelect.appendChild(option);
         });
     });
@@ -111,41 +111,52 @@ function escapeHtml(text){
 // ============================
 // Show Report
 // ============================
-function showReport(){
+function showReport() {
     const cls = document.getElementById("reportClass").value;
     const studentKey = document.getElementById("reportStudent").value;
-    if(!cls || !studentKey){ alert("Select class and student"); return; }
 
-    db.ref('students/'+studentKey).once('value', s=>{
+    if (!cls || !studentKey) {
+        alert("Select class and student");
+        return;
+    }
+
+    db.ref('students/' + studentKey).once('value', s => {
         const student = s.val();
-        db.ref('marks').orderByChild('reg').equalTo(student.adm).once('value', mSnap=>{
-            if(!mSnap.exists()){ alert('No marks for this student!'); return; }
+
+        db.ref('results').orderByChild('studentID').equalTo(studentKey).once('value', mSnap => {
+            if (!mSnap.exists()) {
+                alert('No marks for this student!');
+                return;
+            }
+
             const marks = [];
-            mSnap.forEach(ms=>{
-                marks.push(ms.val());
-            });
-            function remark(mark){
-                if(mark>=80) return 'Excellent';
-                if(mark>=70) return 'Very Good';
-                if(mark>=60) return 'Good';
-                if(mark>=50) return 'Pass';
+            mSnap.forEach(ms => marks.push(ms.val()));
+
+            function remark(mark) {
+                mark = Number(mark);
+                if(mark >= 80) return 'Excellent';
+                if(mark >= 70) return 'Very Good';
+                if(mark >= 60) return 'Good';
+                if(mark >= 50) return 'Pass';
                 return 'Fail';
             }
-            const total = marks.reduce((sum,m)=>sum+Number(m.mark),0);
+
+            const total = marks.reduce((sum,m)=>sum+Number(m.score),0);
             const avg = (total/marks.length).toFixed(2);
-            let generalRemark='';
+
+            let generalRemark = '';
             if(avg>=80) generalRemark='Excellent Performance';
             else if(avg>=70) generalRemark='Very Good Performance';
             else if(avg>=60) generalRemark='Good Performance';
             else if(avg>=50) generalRemark='Fair Performance';
             else generalRemark='Poor Performance';
-            
-            let rows = marks.map(m=>`<tr><td>${escapeHtml(m.subj)}</td><td>${escapeHtml(m.mark)}</td><td>${escapeHtml(remark(m.mark))}</td></tr>`).join('');
+
+            let rows = marks.map(m=>`<tr><td>${escapeHtml(m.subject)}</td><td>${escapeHtml(m.score)}</td><td>${escapeHtml(remark(m.score))}</td></tr>`).join('');
 
             const html = `<div class="report">
                 <h2>NYAMBUNWA ACADEMY</h2>
                 <h3>P.O BOX 742-40200, KISII, KENYA</h3>
-                <p><strong>Student:</strong> ${escapeHtml(student.name)} | <strong>Reg No:</strong> ${escapeHtml(student.adm)} | <strong>Class:</strong> ${escapeHtml(student.class)}</p>
+                <p><strong>Student:</strong> ${escapeHtml(student.name)} | <strong>Reg No:</strong> ${escapeHtml(student.adm || 'N/A')} | <strong>Class:</strong> ${escapeHtml(student.class)}</p>
                 <table><tr><th>Subject</th><th>Marks</th><th>Remarks</th></tr>${rows}</table>
                 <p><strong>Total:</strong> ${total}</p>
                 <p><strong>Average:</strong> ${avg}</p>
@@ -158,7 +169,7 @@ function showReport(){
                 <button onclick="window.print()">Print Report</button>
             </div>`;
 
-            document.getElementById("mainContent").style.display="none";
+            document.getElementById("mainContent").style.display = "none";
             document.getElementById("reportArea").innerHTML = html;
         });
     });
