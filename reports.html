@@ -47,6 +47,19 @@ th{background:#0b722d;color:white;}
     <label for="reportStudent">Select Student:</label>
     <select id="reportStudent"></select>
 
+    <label for="reportYear">Select Year:</label>
+    <select id="reportYear">
+        <option value="">All Years</option>
+    </select>
+
+    <label for="reportTerm">Select Term:</label>
+    <select id="reportTerm">
+        <option value="">All Terms</option>
+        <option value="Term 1">Term 1</option>
+        <option value="Term 2">Term 2</option>
+        <option value="Term 3">Term 3</option>
+    </select>
+
     <button onclick="showReport()">Generate Report</button>
 </div>
 
@@ -94,11 +107,25 @@ function loadReportStudents(){
     db.ref('students').orderByChild('class').equalTo(cls).once('value', snap=>{
         snap.forEach(s=>{
             const option = document.createElement('option');
-            option.value = s.key;  // use Firebase key
+            option.value = s.key;
             option.textContent = s.val().name + ' (' + (s.val().adm || 'N/A') + ')';
             studentSelect.appendChild(option);
         });
     });
+}
+
+// ============================
+// Load Years into Dropdown
+// ============================
+function loadYears(){
+    const yearSelect = document.getElementById("reportYear");
+    const currentYear = new Date().getFullYear();
+    for(let y=2020; y<=currentYear; y++){
+        const option = document.createElement('option');
+        option.value = y;
+        option.textContent = y;
+        yearSelect.appendChild(option);
+    }
 }
 
 // ============================
@@ -114,6 +141,8 @@ function escapeHtml(text){
 function showReport() {
     const cls = document.getElementById("reportClass").value;
     const studentKey = document.getElementById("reportStudent").value;
+    const yearFilter = document.getElementById("reportYear").value;
+    const termFilter = document.getElementById("reportTerm").value;
 
     if (!cls || !studentKey) {
         alert("Select class and student");
@@ -130,7 +159,18 @@ function showReport() {
             }
 
             const marks = [];
-            mSnap.forEach(ms => marks.push(ms.val()));
+            mSnap.forEach(ms => {
+                const m = ms.val();
+                // Apply Year and Term filters
+                if((!yearFilter || m.year == yearFilter) && (!termFilter || m.term == termFilter)){
+                    marks.push(m);
+                }
+            });
+
+            if(marks.length === 0){
+                alert('No marks found for selected filters!');
+                return;
+            }
 
             function remark(mark) {
                 mark = Number(mark);
@@ -157,6 +197,7 @@ function showReport() {
                 <h2>NYAMBUNWA ACADEMY</h2>
                 <h3>P.O BOX 742-40200, KISII, KENYA</h3>
                 <p><strong>Student:</strong> ${escapeHtml(student.name)} | <strong>Reg No:</strong> ${escapeHtml(student.adm || 'N/A')} | <strong>Class:</strong> ${escapeHtml(student.class)}</p>
+                <p><strong>Year:</strong> ${yearFilter || 'All'} | <strong>Term:</strong> ${termFilter || 'All'}</p>
                 <table><tr><th>Subject</th><th>Marks</th><th>Remarks</th></tr>${rows}</table>
                 <p><strong>Total:</strong> ${total}</p>
                 <p><strong>Average:</strong> ${avg}</p>
@@ -193,6 +234,7 @@ document.getElementById("reportClass").addEventListener('change', loadReportStud
 // ============================
 window.onload = function(){
     loadReportClasses();
+    loadYears();
 };
 </script>
 
