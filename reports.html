@@ -17,26 +17,18 @@ header{background:#0b722d;color:white;padding:16px;text-align:center;font-size:2
 select,input{width:100%;padding:10px;margin:6px 0 14px 0;border:1px solid #0b722d;border-radius:6px;font-size:15px;}
 button{background:#0b722d;color:white;border:none;padding:12px 20px;font-size:16px;border-radius:6px;cursor:pointer;margin:5px;}
 button:hover{background:#095a24;}
-.report{border:2px solid #0b722d;padding:20px;margin-top:20px;background:white;border-radius:10px;max-width:800px;margin-left:auto;margin-right:auto;}
+.report{border:2px solid #0b722d;padding:20px;margin-top:20px;background:white;border-radius:10px;}
 .report h2,h3{text-align:center;color:#064d1a;margin:4px 0;}
-table{width:100%;border-collapse:collapse;margin-top:15px;font-size:14px;}
+table{width:100%;border-collapse:collapse;margin-top:15px;}
 th,td{border:1px solid #064d1a;padding:8px;text-align:left;}
 th{background:#0b722d;color:white;}
-.signature{display:flex;justify-content:space-between;margin-top:40px;font-size:14px;}
+.signature{display:flex;justify-content:space-between;margin-top:20px;}
 .print-btn{margin-top:10px;background:#0b722d;color:white;padding:10px 18px;border:none;border-radius:6px;cursor:pointer;}
 .print-btn:hover{background:#064d1a;}
-
-/* ===========================
-   A4 Print Layout
-=========================== */
 @media print{
-    body{margin:0; padding:0;}
     body *{visibility:hidden;}
-    .report, .report *{visibility:visible;}
-    .report{position:absolute;top:0;left:0;width:210mm; height:297mm; padding:30mm 20mm 20mm 20mm; box-sizing:border-box;}
-    .report table{page-break-inside:auto;}
-    .report tr{page-break-inside:avoid; page-break-after:auto;}
-    .report h2,h3,p,table,th,td,div{font-size:14pt;}
+    .report,.report *{visibility:visible;}
+    .report{position:absolute;top:0;left:0;width:100%;}
 }
 </style>
 </head>
@@ -74,143 +66,87 @@ var firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 var db = firebase.database();
 
-// ------------------------
-// Escape HTML
-// ------------------------
-function escapeHtml(text){ 
-    return text ? text.toString().replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m])) : '';
-}
-
-// ------------------------
-// Load Classes (with marks only)
-// ------------------------
-function loadReportClasses() {
+// ============================
+// Load Classes into Dropdown
+// ============================
+function loadReportClasses(){
     const classSelect = document.getElementById("reportClass");
     classSelect.innerHTML = '<option value="">Select Class</option>';
-
-    db.ref('marks').once('value', snap => {
-        const studentRegsWithMarks = new Set();
-        snap.forEach(m => {
-            const reg = (m.val().reg || "").trim().toUpperCase();
-            if (reg) studentRegsWithMarks.add(reg);
-        });
-
-        db.ref('students').once('value', snapStudents => {
-            const classesSet = new Set();
-            snapStudents.forEach(s => {
-                const student = s.val();
-                const studentReg = (student.adm || "").trim().toUpperCase();
-                if (studentRegsWithMarks.has(studentReg)) {
-                    classesSet.add(student.class);
-                }
-            });
-
-            Array.from(classesSet).sort().forEach(cls => {
-                const option = document.createElement('option');
-                option.value = cls;
-                option.textContent = cls;
-                classSelect.appendChild(option);
-            });
+    db.ref('classes').once('value', snap=>{
+        snap.forEach(c=>{
+            const cls = c.val().name;
+            const option = document.createElement('option');
+            option.value = cls;
+            option.textContent = cls;
+            classSelect.appendChild(option);
         });
     });
 }
 
-// ------------------------
-// Load Students (with marks only)
-// ------------------------
-function loadReportStudents() {
+// ============================
+// Load Students into Dropdown
+// ============================
+function loadReportStudents(){
     const cls = document.getElementById("reportClass").value;
     const studentSelect = document.getElementById("reportStudent");
     studentSelect.innerHTML = '<option value="">Select Student</option>';
-    if (!cls) return;
-
-    db.ref('marks').once('value', snapMarks => {
-        const regsWithMarks = new Set();
-        snapMarks.forEach(m => {
-            const reg = (m.val().reg || "").trim().toUpperCase();
-            if (reg) regsWithMarks.add(reg);
-        });
-
-        db.ref('students').orderByChild('class').equalTo(cls).once('value', snapStudents => {
-            snapStudents.forEach(s => {
-                const student = s.val();
-                const studentReg = (student.adm || "").trim().toUpperCase();
-                if (regsWithMarks.has(studentReg)) {
-                    const option = document.createElement('option');
-                    option.value = s.key;
-                    option.textContent = student.name;
-                    studentSelect.appendChild(option);
-                }
-            });
+    if(!cls) return;
+    db.ref('students').orderByChild('class').equalTo(cls).once('value', snap=>{
+        snap.forEach(s=>{
+            const option = document.createElement('option');
+            option.value = s.key;
+            option.textContent = s.val().name + ' (' + s.val().adm + ')';
+            studentSelect.appendChild(option);
         });
     });
 }
 
-// ------------------------
+// ============================
+// Escape HTML
+// ============================
+function escapeHtml(text){ 
+    return text.replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+}
+
+// ============================
 // Show Report
-// ------------------------
-function showReport() {
+// ============================
+function showReport(){
     const cls = document.getElementById("reportClass").value;
     const studentKey = document.getElementById("reportStudent").value;
+    if(!cls || !studentKey){ alert("Select class and student"); return; }
 
-    if (!cls || !studentKey) { 
-        alert("Select class and student"); 
-        return; 
-    }
-
-    db.ref('students/' + studentKey).once('value', s => {
+    db.ref('students/'+studentKey).once('value', s=>{
         const student = s.val();
-        if (!student) {
-            alert("Student data not found");
-            return;
-        }
-
-        db.ref('marks').once('value', snap => {
+        db.ref('marks').orderByChild('reg').equalTo(student.adm).once('value', mSnap=>{
+            if(!mSnap.exists()){ alert('No marks for this student!'); return; }
             const marks = [];
-            snap.forEach(m => {
-                const markData = m.val();
-                if (!markData) return;
-
-                const markReg = (markData.reg || "").trim().toUpperCase();
-                const studentReg = (student.adm || "").trim().toUpperCase();
-
-                if (markReg === studentReg) {
-                    marks.push(markData);
-                }
+            mSnap.forEach(ms=>{
+                marks.push(ms.val());
             });
-
-            function remark(mark) {
-                if (mark >= 80) return 'Excellent';
-                if (mark >= 70) return 'Very Good';
-                if (mark >= 60) return 'Good';
-                if (mark >= 50) return 'Pass';
+            function remark(mark){
+                if(mark>=80) return 'Excellent';
+                if(mark>=70) return 'Very Good';
+                if(mark>=60) return 'Good';
+                if(mark>=50) return 'Pass';
                 return 'Fail';
             }
+            const total = marks.reduce((sum,m)=>sum+Number(m.mark),0);
+            const avg = (total/marks.length).toFixed(2);
+            let generalRemark='';
+            if(avg>=80) generalRemark='Excellent Performance';
+            else if(avg>=70) generalRemark='Very Good Performance';
+            else if(avg>=60) generalRemark='Good Performance';
+            else if(avg>=50) generalRemark='Fair Performance';
+            else generalRemark='Poor Performance';
+            
+            let rows = marks.map(m=>`<tr><td>${escapeHtml(m.subj)}</td><td>${escapeHtml(m.mark)}</td><td>${escapeHtml(remark(m.mark))}</td></tr>`).join('');
 
-            const total = marks.reduce((sum, m) => sum + Number(m.mark || 0), 0);
-            const avg = marks.length ? (total / marks.length).toFixed(2) : 0;
-            let generalRemark = '';
-            if (avg >= 80) generalRemark = 'Excellent Performance';
-            else if (avg >= 70) generalRemark = 'Very Good Performance';
-            else if (avg >= 60) generalRemark = 'Good Performance';
-            else if (avg >= 50) generalRemark = 'Fair Performance';
-            else generalRemark = 'Poor Performance';
-
-            let rows = marks.length
-                ? marks.map(m => `<tr><td>${escapeHtml(m.subj)}</td><td>${escapeHtml(m.mark)}</td><td>${escapeHtml(remark(Number(m.mark)))}</td></tr>`).join('')
-                : '<tr><td colspan="3" style="text-align:center">No marks available</td></tr>';
-
-            const html = `
-            <div class="report">
+            const html = `<div class="report">
                 <h2>NYAMBUNWA ACADEMY</h2>
                 <h3>P.O BOX 742-40200, KISII, KENYA</h3>
-                <p><strong>Student:</strong> ${escapeHtml(student.name)} | 
-                   <strong>Reg No:</strong> ${escapeHtml(student.adm)} | 
-                   <strong>Class:</strong> ${escapeHtml(student.class)}</p>
-                <table>
-                    <tr><th>Subject</th><th>Marks</th><th>Remarks</th></tr>
-                    ${rows}
-                </table>
+                <p><strong>Student:</strong> ${escapeHtml(student.name)} | <strong>Reg No:</strong> ${escapeHtml(student.adm)} | <strong>Class:</strong> ${escapeHtml(student.class)}</p>
+                <table><tr><th>Subject</th><th>Marks</th><th>Remarks</th></tr>${rows}</table>
                 <p><strong>Total:</strong> ${total}</p>
                 <p><strong>Average:</strong> ${avg}</p>
                 <p><strong>General Remark:</strong> ${generalRemark}</p>
@@ -222,28 +158,28 @@ function showReport() {
                 <button onclick="window.print()">Print Report</button>
             </div>`;
 
-            document.getElementById("mainContent").style.display = "none";
+            document.getElementById("mainContent").style.display="none";
             document.getElementById("reportArea").innerHTML = html;
         });
     });
 }
 
-// ------------------------
+// ============================
 // Back to Main
-// ------------------------
+// ============================
 function backToMain(){
-    document.getElementById("reportArea").innerHTML = '';
-    document.getElementById("mainContent").style.display = 'block';
+    document.getElementById("reportArea").innerHTML='';
+    document.getElementById("mainContent").style.display='block';
 }
 
-// ------------------------
+// ============================
 // Event Listeners
-// ------------------------
+// ============================
 document.getElementById("reportClass").addEventListener('change', loadReportStudents);
 
-// ------------------------
+// ============================
 // INIT
-// ------------------------
+// ============================
 window.onload = function(){
     loadReportClasses();
 };
