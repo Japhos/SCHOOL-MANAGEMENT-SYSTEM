@@ -26,12 +26,13 @@ th{background:#0b722d;color:white;}
 .print-btn{margin-top:10px;background:#0b722d;color:white;padding:10px 18px;border:none;border-radius:6px;cursor:pointer;}
 .print-btn:hover{background:#064d1a;}
 
-/* Print Styling for A4 */
+/* Print Styling for A4 with Green Theme */
 @media print {
     body, html {
         margin: 0;
         padding: 0;
         width: 100%;
+        background: #e9f7ec; /* subtle green background for print preview */
     }
     body * {
         visibility: hidden;
@@ -41,16 +42,21 @@ th{background:#0b722d;color:white;}
     }
     .report {
         position: relative;
-        margin: 20mm auto;
-        padding: 15px;
+        margin: 15mm auto;
+        padding: 20px;
         width: 170mm; /* A4 width minus margins */
         box-sizing: border-box;
-        border: 1px solid #0b722d;
-        border-radius: 10px;
+        border: 5px solid #0b722d; /* beautiful green border */
+        border-radius: 15px;
+        background: white;
         page-break-inside: avoid;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.1); /* subtle shadow */
     }
     .report button {
         display: none; /* hide buttons in print */
+    }
+    .signature {
+        margin-top: 40px; /* more space for signatures */
     }
 }
 </style>
