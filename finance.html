@@ -6,76 +6,25 @@
 <title>Finance Management - NYAMBUNWA ACADEMY</title>
 
 <style>
-body{
-    font-family:'Segoe UI',Tahoma,sans-serif;
-    margin:0;
-    background:#e9f7ec;
-}
-header{
-    background:#0b722d;
-    color:#fff;
-    padding:18px;
-    text-align:center;
-    font-size:26px;
-    font-weight:700;
-}
-.sub-title{
-    text-align:center;
-    color:#064d1a;
-    font-weight:600;
-    margin-top:6px;
-}
-.container{ padding:20px; max-width:1100px; margin:0 auto; }
-.section{
-    background:#fff;
-    padding:22px;
-    border-radius:10px;
-    box-shadow:0 2px 6px rgba(0,0,0,0.12);
-    margin-top:20px;
-    border-left:6px solid #0b722d;
-}
-h3{ color:#064d1a; margin-top:0; }
-label{ display:block; margin-top:10px; font-weight:600; color:#064d1a; }
-select, input{
-    width:100%;
-    padding:8px;
-    margin-top:4px;
-    border-radius:5px;
-    border:1px solid #aaa;
-}
-.btn{
-    margin-top:12px;
-    padding:8px 16px;
-    border:none;
-    border-radius:6px;
-    background:#0b722d;
-    color:#fff;
-    cursor:pointer;
-}
-table{
-    width:100%;
-    border-collapse:collapse;
-    margin-top:15px;
-}
-th,td{
-    border:1px solid #ccc;
-    padding:8px;
-    font-size:14px;
-}
-th{ background:#d6f5d9; }
-footer{
-    margin-top:40px;
-    text-align:center;
-    padding:12px;
-    background:#0b722d;
-    color:#fff;
-}
-
-/* PRINT */
+/* --- SAME STYLES (UNCHANGED) --- */
+body{font-family:'Segoe UI',Tahoma,sans-serif;margin:0;background:#e9f7ec;}
+header{background:#0b722d;color:#fff;padding:18px;text-align:center;font-size:26px;font-weight:700;}
+.sub-title{text-align:center;color:#064d1a;font-weight:600;margin-top:6px;}
+.container{padding:20px;max-width:1100px;margin:0 auto;}
+.section{background:#fff;padding:22px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.12);margin-top:20px;border-left:6px solid #0b722d;}
+h3{color:#064d1a;margin-top:0;}
+label{display:block;margin-top:10px;font-weight:600;color:#064d1a;}
+select,input{width:100%;padding:8px;margin-top:4px;border-radius:5px;border:1px solid #aaa;}
+.btn{margin-top:10px;padding:8px 14px;border:none;border-radius:6px;background:#0b722d;color:#fff;cursor:pointer;}
+.btn.danger{background:#b30000;}
+table{width:100%;border-collapse:collapse;margin-top:15px;}
+th,td{border:1px solid #ccc;padding:8px;font-size:14px;}
+th{background:#d6f5d9;}
+footer{margin-top:40px;text-align:center;padding:12px;background:#0b722d;color:#fff;}
 @media print{
-    body *{ visibility:hidden; }
-    .printArea, .printArea *{ visibility:visible; }
-    .printArea{ position:absolute; top:0; left:0; width:100%; }
+ body *{visibility:hidden;}
+ .printArea,.printArea *{visibility:visible;}
+ .printArea{position:absolute;top:0;left:0;width:100%;}
 }
 </style>
 </head>
@@ -93,12 +42,12 @@ footer{
 
 <label>Select Class</label>
 <select id="classSelect" onchange="loadStudentsByClass()">
-    <option value="">Select Class</option>
+<option value="">Select Class</option>
 </select>
 
 <label>Select Student</label>
 <select id="studentSelect" onchange="loadStudentHistory()">
-    <option value="">Select Student</option>
+<option value="">Select Student</option>
 </select>
 
 <label>Amount Paid</label>
@@ -119,10 +68,11 @@ footer{
 <tr>
 <th>Date</th>
 <th>Amount</th>
+<th id="adminCol">Action</th>
 </tr>
 </thead>
 <tbody id="historyTable">
-<tr><td colspan="2">Select a student to view history</td></tr>
+<tr><td colspan="3">Select a student to view history</td></tr>
 </tbody>
 </table>
 
@@ -140,7 +90,6 @@ footer{
 <th>Total Fee</th>
 <th>Total Paid</th>
 <th>Balance</th>
-<th>Receipt</th>
 </tr>
 </thead>
 <tbody id="financeTable"></tbody>
@@ -153,33 +102,12 @@ footer{
 
 <footer>© 2025 NYAMBUNWA ACADEMY — School Management System</footer>
 
-<!-- PRINTABLE HISTORY -->
-<div id="historyPrint" class="printArea" style="display:none;padding:20px;">
-<h2 style="text-align:center;color:#0b722d;">NYAMBUNWA ACADEMY</h2>
-<h3 style="text-align:center;">Fee Payment History</h3>
-<p id="historyStudent"></p>
-
-<table>
-<thead>
-<tr>
-<th>Date</th>
-<th>Amount</th>
-</tr>
-</thead>
-<tbody id="historyPrintTable"></tbody>
-</table>
-
-<p style="margin-top:30px;">
-<strong>Authorized Signature:</strong> ______________________
-</p>
-</div>
-
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
 
 <script>
-const firebaseConfig = {
+const firebaseConfig={
  apiKey:"AIzaSyBZWRqW1a0qLyx76QZapberiE4Mio97OqI",
  authDomain:"school-management-system-24753.firebaseapp.com",
  projectId:"school-management-system-24753",
@@ -188,14 +116,15 @@ const firebaseConfig = {
  appId:"1:98011038194:web:b54b1b91e543127347ab6b"
 };
 firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+const db=firebase.database();
+const role=localStorage.getItem("userRole");
 
 // INIT
 window.onload=()=>{
  if(!localStorage.getItem("loggedInUser")) location="login.html";
  paymentDate.value=new Date().toISOString().split("T")[0];
- loadClasses();
- loadFinance();
+ if(role!=="admin") document.getElementById("adminCol").style.display="none";
+ loadClasses(); loadFinance();
 };
 
 // LOAD CLASSES
@@ -210,9 +139,8 @@ function loadClasses(){
 // LOAD STUDENTS
 function loadStudentsByClass(){
  studentSelect.innerHTML="<option value=''>Select Student</option>";
- historyTable.innerHTML="<tr><td colspan='2'>Select a student to view history</td></tr>";
+ historyTable.innerHTML="<tr><td colspan='3'>Select a student</td></tr>";
  if(!classSelect.value) return;
-
  db.ref("students").orderByChild("class").equalTo(classSelect.value)
  .once("value",s=>{
   s.forEach(x=>{
@@ -227,10 +155,9 @@ function loadStudentsByClass(){
 function savePayment(){
  if(!studentSelect.value||!amountPaid.value) return alert("Fill all fields");
  const [id,name,cls]=studentSelect.value.split("|");
-
  db.ref("finance/payments").push({
-  studentId:id, studentName:name, class:cls,
-  amount:Number(amountPaid.value), date:paymentDate.value
+  studentId:id,studentName:name,class:cls,
+  amount:Number(amountPaid.value),date:paymentDate.value
  });
  amountPaid.value="";
  loadStudentHistory();
@@ -239,35 +166,36 @@ function savePayment(){
 // LOAD HISTORY
 function loadStudentHistory(){
  if(!studentSelect.value) return;
- const [id,name,cls]=studentSelect.value.split("|");
+ const [id]=studentSelect.value.split("|");
  historyTable.innerHTML="";
-
  db.ref("finance/payments").orderByChild("studentId").equalTo(id)
  .once("value",s=>{
   if(!s.exists()){
-   historyTable.innerHTML="<tr><td colspan='2'>No payments</td></tr>";
+   historyTable.innerHTML="<tr><td colspan='3'>No payments</td></tr>";
    return;
   }
   s.forEach(p=>{
-   historyTable.innerHTML+=`<tr><td>${p.val().date}</td><td>${p.val().amount}</td></tr>`;
+   const delBtn = role==="admin"
+    ? `<button class="btn danger" onclick="reversePayment('${p.key}')">Delete</button>`
+    : "";
+   historyTable.innerHTML+=`
+   <tr>
+    <td>${p.val().date}</td>
+    <td>${p.val().amount}</td>
+    <td>${delBtn}</td>
+   </tr>`;
   });
  });
 }
 
-// PRINT HISTORY
-function printHistory(){
- if(!studentSelect.value) return alert("Select a student");
- const [id,name,cls]=studentSelect.value.split("|");
-
- historyStudent.innerHTML=
- `<strong>Student:</strong> ${name}<br>
-  <strong>Class:</strong> ${cls}<br>
-  <strong>Date:</strong> ${new Date().toLocaleDateString()}`;
-
- historyPrintTable.innerHTML=historyTable.innerHTML;
- historyPrint.style.display="block";
- window.print();
- historyPrint.style.display="none";
+// REVERSE PAYMENT (ADMIN ONLY)
+function reversePayment(id){
+ if(role!=="admin") return;
+ if(!confirm("Are you sure you want to reverse this payment?")) return;
+ db.ref("finance/payments/"+id).remove(()=>{
+  loadStudentHistory();
+  loadFinance();
+ });
 }
 
 // LOAD BALANCES
@@ -286,13 +214,13 @@ function loadFinance(){
      <td>${fee}</td>
      <td>${paid}</td>
      <td>${fee-paid}</td>
-     <td><button onclick="alert('Use receipt print')">Print</button></td>
     </tr>`;
    });
   });
  });
 }
 
+function printHistory(){ window.print(); }
 function goBack(){ location="index.html"; }
 </script>
 
