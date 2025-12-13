@@ -67,15 +67,15 @@ footer{margin-top:40px;text-align:center;padding:12px;background:#0b722d;color:#
 <tr>
 <th>Date</th>
 <th>Amount</th>
+<th>Balance</th>
 <th id="adminCol">Action</th>
 </tr>
 </thead>
 <tbody id="historyTable">
-<tr><td colspan="3">Select a student to view history</td></tr>
+<tr><td colspan="4">Select a student to view history</td></tr>
 </tbody>
 </table>
 
-<!-- PRINT HISTORY BUTTON VISIBLE TO ALL USERS -->
 <button class="btn" onclick="printHistory()">🖨 Print History</button>
 </div>
 
@@ -113,6 +113,7 @@ footer{margin-top:40px;text-align:center;padding:12px;background:#0b722d;color:#
 <tr>
 <th>Date</th>
 <th>Amount</th>
+<th>Balance</th>
 </tr>
 </thead>
 <tbody id="historyPrintTable"></tbody>
@@ -160,7 +161,7 @@ function loadClasses(){
 // LOAD STUDENTS
 function loadStudentsByClass(){
  studentSelect.innerHTML="<option value=''>Select Student</option>";
- historyTable.innerHTML="<tr><td colspan='3'>Select a student</td></tr>";
+ historyTable.innerHTML="<tr><td colspan='4'>Select a student</td></tr>";
  if(!classSelect.value) return;
  db.ref("students").orderByChild("class").equalTo(classSelect.value)
  .once("value",s=>{
@@ -183,7 +184,7 @@ function savePayment(){
  loadStudentHistory();
 }
 
-// LOAD HISTORY
+// LOAD HISTORY WITH BALANCE
 function loadStudentHistory(){
  if(!studentSelect.value) return;
  const [id]=studentSelect.value.split("|");
@@ -191,10 +192,14 @@ function loadStudentHistory(){
  db.ref("finance/payments").orderByChild("studentId").equalTo(id)
  .once("value",s=>{
   if(!s.exists()){
-   historyTable.innerHTML="<tr><td colspan='3'>No payments</td></tr>";
+   historyTable.innerHTML="<tr><td colspan='4'>No payments</td></tr>";
    return;
   }
+  let totalFee = 50000; // fixed total fee per student
+  let cumulativePaid = 0;
   s.forEach(p=>{
+   cumulativePaid += p.val().amount;
+   let balance = totalFee - cumulativePaid;
    const delBtn = role==="admin"
     ? `<button class="btn danger" onclick="reversePayment('${p.key}')">Delete</button>`
     : "";
@@ -202,13 +207,14 @@ function loadStudentHistory(){
    <tr>
     <td>${p.val().date}</td>
     <td>${p.val().amount}</td>
+    <td>${balance}</td>
     <td>${delBtn}</td>
    </tr>`;
   });
  });
 }
 
-// PRINT HISTORY (ALL USERS)
+// PRINT HISTORY WITH BALANCE
 function printHistory(){
  if(!studentSelect.value) return alert("Select a student");
  const [id,name,cls]=studentSelect.value.split("|");
@@ -218,8 +224,8 @@ function printHistory(){
   <strong>Class:</strong> ${cls}<br>
   <strong>Date:</strong> ${new Date().toLocaleDateString()}`;
 
- // copy table
- historyPrintTable.innerHTML=historyTable.innerHTML.replace(/<td>.*Delete.*<\/td>/g,''); // remove buttons
+ // copy table and remove Delete buttons
+ historyPrintTable.innerHTML = historyTable.innerHTML.replace(/<td>.*Delete.*<\/td>/g,'');
  historyPrint.style.display="block";
  window.print();
  historyPrint.style.display="none";
