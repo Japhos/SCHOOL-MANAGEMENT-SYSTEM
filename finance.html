@@ -270,13 +270,15 @@ function loadFeeSettings(){
 }
 
 // GET TOTAL FEE FOR STUDENT & TERM
-function getStudentTermFee(studentClass, term, callback){
- db.ref(`finance/termFees/${term}/${studentClass}`).once("value",s=>{
-  if(s.exists()) return callback(s.val().totalFee);
-  db.ref(`finance/termFees/${term}/all`).once("value",s2=>{
-   if(s2.exists()) return callback(s2.val().totalFee);
-   callback(50000); // default
-  });
+function getStudentTermFee(studentClass, term){
+ return new Promise(resolve=>{
+   db.ref(`finance/termFees/${term}/${studentClass}`).once("value",s=>{
+    if(s.exists()) return resolve(s.val().totalFee);
+    db.ref(`finance/termFees/${term}/all`).once("value",s2=>{
+     if(s2.exists()) return resolve(s2.val().totalFee);
+     resolve(50000); // default fee
+    });
+   });
  });
 }
 
@@ -296,45 +298,44 @@ function savePayment(){
 }
 
 // LOAD HISTORY
-function loadStudentHistory(){
+async function loadStudentHistory(){
  if(!studentSelect.value) return;
  const [id,name,cls]=studentSelect.value.split("|");
  historyTable.innerHTML="";
 
- db.ref("finance/payments").orderByChild("studentId").equalTo(id)
- .once("value",snap=>{
-   if(!snap.exists()){ 
-     historyTable.innerHTML="<tr><td colspan='5'>No payments</td></tr>"; 
-     return; 
-   }
+ const snap = await db.ref("finance/payments").orderByChild("studentId").equalTo(id).once("value");
+ if(!snap.exists()){ 
+   historyTable.innerHTML="<tr><td colspan='5'>No payments</td></tr>"; 
+   return; 
+ }
 
-   // Convert payments to array and sort by date ascending
-   let payments = [];
-   snap.forEach(p => payments.push({...p.val(), key:p.key}));
-   payments.sort((a,b)=> new Date(a.date) - new Date(b.date));
+ // Convert payments to array and sort by date ascending
+ let payments = [];
+ snap.forEach(p => payments.push({...p.val(), key:p.key}));
+ payments.sort((a,b)=> new Date(a.date) - new Date(b.date));
 
-   // Keep track of running totals per term
-   let termTotals = {};
+ let termTotals = {};
+ let rows = [];
 
-   payments.forEach(p=>{
-     const term = p.term;
-     if(!termTotals[term]) termTotals[term] = 0;
-     termTotals[term] += p.amount;
+ for(const p of payments){
+   const term = p.term;
+   if(!termTotals[term]) termTotals[term]=0;
+   termTotals[term]+=p.amount;
+   const totalFee = await getStudentTermFee(cls, term);
+   const balance = totalFee - termTotals[term];
+   const delBtn = role==="admin"? `<button class="btn danger" onclick="reversePayment('${p.key}')">Delete</button>` : "";
+   rows.push(`
+     <tr>
+       <td>${p.date}</td>
+       <td>${term}</td>
+       <td>${p.amount}</td>
+       <td>${balance}</td>
+       <td>${delBtn}</td>
+     </tr>
+   `);
+ }
 
-     getStudentTermFee(cls, term, totalFee=>{
-       const balance = totalFee - termTotals[term];
-       const delBtn = role==="admin"? `<button class="btn danger" onclick="reversePayment('${p.key}')">Delete</button>` : "";
-       historyTable.innerHTML += `
-        <tr>
-         <td>${p.date}</td>
-         <td>${term}</td>
-         <td>${p.amount}</td>
-         <td>${balance}</td>
-         <td>${delBtn}</td>
-        </tr>`;
-     });
-   });
- });
+ historyTable.innerHTML = rows.join("");
 }
 
 // PRINT HISTORY
@@ -344,7 +345,7 @@ function printHistory(){
 
  historyStudent.innerHTML=`<strong>Student:</strong> ${name}<br><strong>Class:</strong> ${cls}<br><strong>Date:</strong> ${new Date().toLocaleDateString()}`;
 
- // Copy sorted table rows without Delete buttons
+ // Copy table rows without Delete buttons
  let printRows = "";
  const rows = historyTable.querySelectorAll("tr");
  rows.forEach(r=>{
@@ -369,30 +370,21 @@ function reversePayment(id){
 function loadFinanceTermWise(){
  db.ref("students").once("value", s => {
   financeTable.innerHTML = "";
-  s.forEach(stu => {
+  s.forEach(async stu => {
    const studentId = stu.key;
    const studentName = stu.val().name;
    const studentClass = stu.val().class;
    const terms = ["Term 1","Term 2","Term 3"];
    let row = `<tr><td>${studentName}</td><td>${studentClass}</td>`;
-   let termDataPromises = terms.map(term => {
-    return new Promise(resolve => {
-     getStudentTermFee(studentClass, term, totalFee => {
-      db.ref("finance/payments").orderByChild("studentId").equalTo(studentId)
-       .once("value", paymentsSnap => {
-        let paid = 0;
-        paymentsSnap.forEach(p => { if(p.val().term === term) paid += p.val().amount; });
-        const balance = totalFee - paid;
-        resolve({term, fee: totalFee, paid, balance});
-       });
-     });
-    });
-   });
-   Promise.all(termDataPromises).then(results => {
-    results.forEach(t => { row += `<td>${t.fee}</td><td>${t.paid}</td><td>${t.balance}</td>`; });
-    row += "</tr>";
-    financeTable.innerHTML += row;
-   });
+   for(const term of terms){
+     const totalFee = await getStudentTermFee(studentClass, term);
+     const paymentsSnap = await db.ref("finance/payments").orderByChild("studentId").equalTo(studentId).once("value");
+     let paid=0;
+     paymentsSnap.forEach(p=>{ if(p.val().term===term) paid+=p.val().amount; });
+     row += `<td>${totalFee}</td><td>${paid}</td><td>${totalFee-paid}</td>`;
+   }
+   row += "</tr>";
+   financeTable.innerHTML += row;
   });
  });
 }
