@@ -146,8 +146,6 @@ footer{margin-top:40px;text-align:center;padding:12px;background:#0b722d;color:#
 
 </div>
 
-<footer>© 2025 NYAMBUNWA ACADEMY — School Management System</footer>
-
 <!-- PRINTABLE HISTORY -->
 <div id="historyPrint" class="printArea" style="display:none;padding:20px;">
 <h2 style="text-align:center;color:#0b722d;">NYAMBUNWA ACADEMY</h2>
@@ -302,30 +300,40 @@ function loadStudentHistory(){
  if(!studentSelect.value) return;
  const [id,name,cls]=studentSelect.value.split("|");
  historyTable.innerHTML="";
+
  db.ref("finance/payments").orderByChild("studentId").equalTo(id)
- .once("value",s=>{
-  if(!s.exists()){ historyTable.innerHTML="<tr><td colspan='5'>No payments</td></tr>"; return; }
-  let cumulativePaidPerTerm={};
-  s.forEach(p=>{
-   const term=p.val().term;
-   if(!cumulativePaidPerTerm[term]) cumulativePaidPerTerm[term]=0;
-   cumulativePaidPerTerm[term]+=p.val().amount;
-  });
-  s.forEach(p=>{
-   getStudentTermFee(cls, p.val().term, totalFee=>{
-    const cumulativePaid=cumulativePaidPerTerm[p.val().term];
-    const balance=totalFee-cumulativePaid;
-    const delBtn=role==="admin"? `<button class="btn danger" onclick="reversePayment('${p.key}')">Delete</button>`:"";
-    historyTable.innerHTML+=`
-     <tr>
-      <td>${p.val().date}</td>
-      <td>${p.val().term}</td>
-      <td>${p.val().amount}</td>
-      <td>${balance}</td>
-      <td>${delBtn}</td>
-     </tr>`;
+ .once("value",snap=>{
+   if(!snap.exists()){ 
+     historyTable.innerHTML="<tr><td colspan='5'>No payments</td></tr>"; 
+     return; 
+   }
+
+   // Convert payments to array and sort by date ascending
+   let payments = [];
+   snap.forEach(p => payments.push({...p.val(), key:p.key}));
+   payments.sort((a,b)=> new Date(a.date) - new Date(b.date));
+
+   // Keep track of running totals per term
+   let termTotals = {};
+
+   payments.forEach(p=>{
+     const term = p.term;
+     if(!termTotals[term]) termTotals[term] = 0;
+     termTotals[term] += p.amount;
+
+     getStudentTermFee(cls, term, totalFee=>{
+       const balance = totalFee - termTotals[term];
+       const delBtn = role==="admin"? `<button class="btn danger" onclick="reversePayment('${p.key}')">Delete</button>` : "";
+       historyTable.innerHTML += `
+        <tr>
+         <td>${p.date}</td>
+         <td>${term}</td>
+         <td>${p.amount}</td>
+         <td>${balance}</td>
+         <td>${delBtn}</td>
+        </tr>`;
+     });
    });
-  });
  });
 }
 
@@ -333,8 +341,18 @@ function loadStudentHistory(){
 function printHistory(){
  if(!studentSelect.value) return alert("Select a student");
  const [id,name,cls]=studentSelect.value.split("|");
+
  historyStudent.innerHTML=`<strong>Student:</strong> ${name}<br><strong>Class:</strong> ${cls}<br><strong>Date:</strong> ${new Date().toLocaleDateString()}`;
- historyPrintTable.innerHTML = historyTable.innerHTML.replace(/<td>.*Delete.*<\/td>/g,'');
+
+ // Copy sorted table rows without Delete buttons
+ let printRows = "";
+ const rows = historyTable.querySelectorAll("tr");
+ rows.forEach(r=>{
+   const cells = Array.from(r.querySelectorAll("td")).slice(0,4);
+   printRows += "<tr>" + cells.map(c=>`<td>${c.innerText}</td>`).join("") + "</tr>";
+ });
+ historyPrintTable.innerHTML = printRows;
+
  document.getElementById("historyPrint").style.display="block";
  window.print();
  document.getElementById("historyPrint").style.display="none";
