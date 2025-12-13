@@ -44,8 +44,8 @@ select, input{
     border:1px solid #aaa;
 }
 .btn{
-    margin-top:16px;
-    padding:10px 18px;
+    margin-top:12px;
+    padding:8px 16px;
     border:none;
     border-radius:6px;
     background:#0b722d;
@@ -70,10 +70,12 @@ footer{
     background:#0b722d;
     color:#fff;
 }
+
+/* PRINT */
 @media print{
     body *{ visibility:hidden; }
-    #receipt, #receipt *{ visibility:visible; }
-    #receipt{ position:absolute; top:0; left:0; width:100%; }
+    .printArea, .printArea *{ visibility:visible; }
+    .printArea{ position:absolute; top:0; left:0; width:100%; }
 }
 </style>
 </head>
@@ -111,6 +113,7 @@ footer{
 <!-- PAYMENT HISTORY -->
 <div class="section">
 <h3>Payment History (Selected Student)</h3>
+
 <table>
 <thead>
 <tr>
@@ -122,6 +125,8 @@ footer{
 <tr><td colspan="2">Select a student to view history</td></tr>
 </tbody>
 </table>
+
+<button class="btn" onclick="printHistory()">🖨 Print History</button>
 </div>
 
 <!-- PAYMENTS & BALANCES -->
@@ -148,12 +153,25 @@ footer{
 
 <footer>© 2025 NYAMBUNWA ACADEMY — School Management System</footer>
 
-<!-- RECEIPT -->
-<div id="receipt" style="display:none;padding:20px;">
+<!-- PRINTABLE HISTORY -->
+<div id="historyPrint" class="printArea" style="display:none;padding:20px;">
 <h2 style="text-align:center;color:#0b722d;">NYAMBUNWA ACADEMY</h2>
-<p id="rDetails"></p>
-<hr>
-<p><strong>Authorized Signature:</strong> _____________________</p>
+<h3 style="text-align:center;">Fee Payment History</h3>
+<p id="historyStudent"></p>
+
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Amount</th>
+</tr>
+</thead>
+<tbody id="historyPrintTable"></tbody>
+</table>
+
+<p style="margin-top:30px;">
+<strong>Authorized Signature:</strong> ______________________
+</p>
 </div>
 
 <!-- Firebase -->
@@ -172,143 +190,107 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// LOGIN CHECK & INIT
-window.onload = ()=>{
+// INIT
+window.onload=()=>{
  if(!localStorage.getItem("loggedInUser")) location="login.html";
- setToday();
+ paymentDate.value=new Date().toISOString().split("T")[0];
  loadClasses();
  loadFinance();
 };
 
-// SET TODAY'S DATE
-function setToday(){
- const today = new Date().toISOString().split("T")[0];
- paymentDate.value = today;
-}
-
 // LOAD CLASSES
 function loadClasses(){
- let classes=new Set();
- db.ref("students").once("value",snap=>{
-  snap.forEach(s=>classes.add(s.val().class));
-  classes.forEach(c=>{
-    classSelect.innerHTML+=`<option value="${c}">${c}</option>`;
-  });
+ let c=new Set();
+ db.ref("students").once("value",s=>{
+  s.forEach(x=>c.add(x.val().class));
+  c.forEach(v=>classSelect.innerHTML+=`<option>${v}</option>`);
  });
 }
 
-// LOAD STUDENTS BY CLASS
+// LOAD STUDENTS
 function loadStudentsByClass(){
  studentSelect.innerHTML="<option value=''>Select Student</option>";
  historyTable.innerHTML="<tr><td colspan='2'>Select a student to view history</td></tr>";
  if(!classSelect.value) return;
 
- db.ref("students")
-   .orderByChild("class")
-   .equalTo(classSelect.value)
-   .once("value",snap=>{
-    snap.forEach(s=>{
-      const v=s.val();
-      studentSelect.innerHTML+=
-       `<option value="${s.key}|${v.name}|${v.class}">
-          ${v.name}
-        </option>`;
-    });
+ db.ref("students").orderByChild("class").equalTo(classSelect.value)
+ .once("value",s=>{
+  s.forEach(x=>{
+   studentSelect.innerHTML+=
+   `<option value="${x.key}|${x.val().name}|${x.val().class}">
+    ${x.val().name}</option>`;
+  });
  });
 }
 
 // SAVE PAYMENT
 function savePayment(){
- if(!studentSelect.value || !amountPaid.value)
-   return alert("Fill all fields");
-
+ if(!studentSelect.value||!amountPaid.value) return alert("Fill all fields");
  const [id,name,cls]=studentSelect.value.split("|");
 
  db.ref("finance/payments").push({
-  studentId:id,
-  studentName:name,
-  class:cls,
-  amount:Number(amountPaid.value),
-  date:paymentDate.value
+  studentId:id, studentName:name, class:cls,
+  amount:Number(amountPaid.value), date:paymentDate.value
  });
-
  amountPaid.value="";
  loadStudentHistory();
 }
 
-// LOAD PAYMENT HISTORY
+// LOAD HISTORY
 function loadStudentHistory(){
  if(!studentSelect.value) return;
-
- const [id]=studentSelect.value.split("|");
+ const [id,name,cls]=studentSelect.value.split("|");
  historyTable.innerHTML="";
 
- db.ref("finance/payments")
-   .orderByChild("studentId")
-   .equalTo(id)
-   .once("value",snap=>{
-    if(!snap.exists()){
-      historyTable.innerHTML="<tr><td colspan='2'>No payments found</td></tr>";
-      return;
-    }
-    snap.forEach(p=>{
-      const v=p.val();
-      historyTable.innerHTML+=`
-      <tr>
-        <td>${v.date}</td>
-        <td>${v.amount}</td>
-      </tr>`;
-    });
+ db.ref("finance/payments").orderByChild("studentId").equalTo(id)
+ .once("value",s=>{
+  if(!s.exists()){
+   historyTable.innerHTML="<tr><td colspan='2'>No payments</td></tr>";
+   return;
+  }
+  s.forEach(p=>{
+   historyTable.innerHTML+=`<tr><td>${p.val().date}</td><td>${p.val().amount}</td></tr>`;
+  });
  });
+}
+
+// PRINT HISTORY
+function printHistory(){
+ if(!studentSelect.value) return alert("Select a student");
+ const [id,name,cls]=studentSelect.value.split("|");
+
+ historyStudent.innerHTML=
+ `<strong>Student:</strong> ${name}<br>
+  <strong>Class:</strong> ${cls}<br>
+  <strong>Date:</strong> ${new Date().toLocaleDateString()}`;
+
+ historyPrintTable.innerHTML=historyTable.innerHTML;
+ historyPrint.style.display="block";
+ window.print();
+ historyPrint.style.display="none";
 }
 
 // LOAD BALANCES
 function loadFinance(){
- db.ref("finance/payments").on("value",snap=>{
-  let totals={};
-  snap.forEach(p=>{
-    const v=p.val();
-    totals[v.studentId]=(totals[v.studentId]||0)+v.amount;
-  });
-
-  db.ref("students").once("value",stuSnap=>{
-    financeTable.innerHTML="";
-    stuSnap.forEach(s=>{
-      const v=s.val();
-      const paid=totals[s.key]||0;
-      const fee=50000;
-      const bal=fee-paid;
-
-      financeTable.innerHTML+=`
-      <tr>
-        <td>${v.name}</td>
-        <td>${v.class}</td>
-        <td>${fee}</td>
-        <td>${paid}</td>
-        <td>${bal}</td>
-        <td>
-          <button onclick="printReceipt('${v.name}','${v.class}',${paid},${bal})">
-            Print
-          </button>
-        </td>
-      </tr>`;
-    });
+ db.ref("finance/payments").on("value",p=>{
+  let t={};
+  p.forEach(x=>t[x.val().studentId]=(t[x.val().studentId]||0)+x.val().amount);
+  db.ref("students").once("value",s=>{
+   financeTable.innerHTML="";
+   s.forEach(x=>{
+    const fee=50000, paid=t[x.key]||0;
+    financeTable.innerHTML+=`
+    <tr>
+     <td>${x.val().name}</td>
+     <td>${x.val().class}</td>
+     <td>${fee}</td>
+     <td>${paid}</td>
+     <td>${fee-paid}</td>
+     <td><button onclick="alert('Use receipt print')">Print</button></td>
+    </tr>`;
+   });
   });
  });
-}
-
-// PRINT RECEIPT
-function printReceipt(name,cls,paid,bal){
- receipt.style.display="block";
- rDetails.innerHTML=`
- <strong>Student:</strong> ${name}<br>
- <strong>Class:</strong> ${cls}<br>
- <strong>Total Paid:</strong> ${paid}<br>
- <strong>Balance:</strong> ${bal}<br>
- <strong>Date:</strong> ${new Date().toLocaleDateString()}
- `;
- window.print();
- receipt.style.display="none";
 }
 
 function goBack(){ location="index.html"; }
