@@ -11,11 +11,12 @@ header{background:#0b722d;color:#fff;padding:18px;text-align:center;font-size:26
 .container{padding:20px;max-width:1100px;margin:0 auto;}
 .section{background:#fff;padding:22px;border-radius:10px;box-shadow:0 2px 6px rgba(0,0,0,0.12);margin-top:20px;border-left:6px solid #0b722d;}
 h3{color:#064d1a;margin-top:0;}
+h4{color:#064d1a;margin-top:15px;}
 label{display:block;margin-top:10px;font-weight:600;color:#064d1a;}
 select,input{width:100%;padding:8px;margin-top:4px;border-radius:5px;border:1px solid #aaa;}
 .btn{margin-top:10px;padding:8px 14px;border:none;border-radius:6px;background:#0b722d;color:#fff;cursor:pointer;}
 .btn.danger{background:#b30000;}
-table{width:100%;border-collapse:collapse;margin-top:15px;}
+table{width:100%;border-collapse:collapse;margin-top:10px;}
 th,td{border:1px solid #ccc;padding:8px;font-size:14px;}
 th{background:#d6f5d9;}
 footer{margin-top:40px;text-align:center;padding:12px;background:#0b722d;color:#fff;}
@@ -54,6 +55,20 @@ footer{margin-top:40px;text-align:center;padding:12px;background:#0b722d;color:#
 <input type="number" id="totalFeeInput" placeholder="Enter total fee">
 
 <button class="btn" onclick="saveTotalFee()">Save Total Fee</button>
+
+<h4>Current Fee Settings</h4>
+<table id="feeTable">
+<thead>
+<tr>
+<th>Term</th>
+<th>Class</th>
+<th>Total Fee</th>
+</tr>
+</thead>
+<tbody>
+<tr><td colspan="3">No fee set yet</td></tr>
+</tbody>
+</table>
 </div>
 
 <!-- PAYMENT ENTRY -->
@@ -181,6 +196,12 @@ const historyTable=document.getElementById("historyTable");
 const financeTable=document.getElementById("financeTable");
 const historyStudent=document.getElementById("historyStudent");
 const historyPrintTable=document.getElementById("historyPrintTable");
+const feeTable=document.getElementById("feeTable").querySelector("tbody");
+
+// ADMIN FEE SETUP ELEMENTS
+const feeClassSelect=document.getElementById("feeClassSelect");
+const feeTermSelect=document.getElementById("feeTermSelect");
+const totalFeeInput=document.getElementById("totalFeeInput");
 
 // INIT
 window.onload=()=>{
@@ -188,7 +209,7 @@ window.onload=()=>{
  paymentDate.value=new Date().toISOString().split("T")[0];
  if(role==="admin") document.getElementById("adminFeeSection").style.display="block";
  else document.getElementById("adminCol").style.display="none";
- loadClasses(); loadClassesForFee(); loadFinance();
+ loadClasses(); loadClassesForFee(); loadFinance(); loadFeeSettings();
 };
 
 // LOAD CLASSES
@@ -213,16 +234,10 @@ function loadStudentsByClass(){
  });
 }
 
-// ADMIN FEE SETUP
-const feeClassSelect=document.getElementById("feeClassSelect");
-const feeTermSelect=document.getElementById("feeTermSelect");
-const totalFeeInput=document.getElementById("totalFeeInput");
-
+// ADMIN FEE SETUP FUNCTIONS
 function loadClassesForFee(){
  db.ref("students").once("value",s=>{
-  s.forEach(x=>{
-   feeClassSelect.innerHTML+=`<option>${x.val().class}</option>`;
-  });
+  s.forEach(x=>feeClassSelect.innerHTML+=`<option>${x.val().class}</option>`);
  });
 }
 
@@ -234,6 +249,24 @@ function saveTotalFee(){
  db.ref(`finance/termFees/${term}/${cls}`).set({totalFee:fee},()=>{
   alert("Total fee set successfully!");
   totalFeeInput.value=""; feeTermSelect.value="";
+  loadFeeSettings(); // refresh display
+ });
+}
+
+function loadFeeSettings(){
+ feeTable.innerHTML="<tr><td colspan='3'>No fee set yet</td></tr>";
+ db.ref("finance/termFees").once("value",terms=>{
+  if(!terms.exists()) return;
+  let rows="";
+  terms.forEach(termSnap=>{
+   const term=termSnap.key;
+   termSnap.forEach(clsSnap=>{
+    const cls=clsSnap.key;
+    const fee=clsSnap.val().totalFee;
+    rows+=`<tr><td>${term}</td><td>${cls}</td><td>${fee}</td></tr>`;
+   });
+  });
+  feeTable.innerHTML = rows || "<tr><td colspan='3'>No fee set yet</td></tr>";
  });
 }
 
@@ -243,7 +276,7 @@ function getStudentTermFee(studentClass, term, callback){
   if(s.exists()) return callback(s.val().totalFee);
   db.ref(`finance/termFees/${term}/all`).once("value",s2=>{
    if(s2.exists()) return callback(s2.val().totalFee);
-   callback(50000);
+   callback(50000); // default
   });
  });
 }
@@ -270,9 +303,7 @@ function loadStudentHistory(){
  historyTable.innerHTML="";
  db.ref("finance/payments").orderByChild("studentId").equalTo(id)
  .once("value",s=>{
-  if(!s.exists()){
-   historyTable.innerHTML="<tr><td colspan='5'>No payments</td></tr>"; return;
-  }
+  if(!s.exists()){ historyTable.innerHTML="<tr><td colspan='5'>No payments</td></tr>"; return; }
   let cumulativePaidPerTerm={};
   s.forEach(p=>{
    const term=p.val().term;
