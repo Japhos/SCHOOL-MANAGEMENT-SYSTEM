@@ -297,90 +297,47 @@ function savePayment(){
  loadFinanceTermWise();
 }
 
-// LOAD HISTORY (updated with sequential balance using Promises)
-function loadStudentHistory() {
-    if (!studentSelect.value) return;
-    const [id, name, cls] = studentSelect.value.split("|");
-    historyTable.innerHTML = "";
-
-    db.ref("finance/payments").orderByChild("studentId").equalTo(id)
-        .once("value", snap => {
-            if (!snap.exists()) {
-                historyTable.innerHTML = "<tr><td colspan='5'>No payments</td></tr>";
-                return;
-            }
-
-            let payments = [];
-            snap.forEach(p => payments.push({ key: p.key, ...p.val() }));
-            payments.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-            let runningBalance = {};
-            let promises = payments.map(p => new Promise(resolve => {
-                getStudentTermFee(cls, p.term, totalFee => {
-                    if (runningBalance[p.term] === undefined) runningBalance[p.term] = totalFee;
-                    runningBalance[p.term] -= p.amount;
-                    const delBtn = role === "admin" ? `<button class="btn danger" onclick="reversePayment('${p.key}')">Delete</button>` : "";
-                    historyTable.innerHTML += `
-                        <tr>
-                            <td>${p.date}</td>
-                            <td>${p.term}</td>
-                            <td>${p.amount}</td>
-                            <td>${runningBalance[p.term]}</td>
-                            <td>${delBtn}</td>
-                        </tr>
-                    `;
-                    resolve();
-                });
-            }));
-            Promise.all(promises); // ensures all balances computed before rendering fully
-        });
+// LOAD HISTORY
+function loadStudentHistory(){
+ if(!studentSelect.value) return;
+ const [id,name,cls]=studentSelect.value.split("|");
+ historyTable.innerHTML="";
+ db.ref("finance/payments").orderByChild("studentId").equalTo(id)
+ .once("value",s=>{
+  if(!s.exists()){ historyTable.innerHTML="<tr><td colspan='5'>No payments</td></tr>"; return; }
+  let cumulativePaidPerTerm={};
+  s.forEach(p=>{
+   const term=p.val().term;
+   if(!cumulativePaidPerTerm[term]) cumulativePaidPerTerm[term]=0;
+   cumulativePaidPerTerm[term]+=p.val().amount;
+  });
+  s.forEach(p=>{
+   getStudentTermFee(cls, p.val().term, totalFee=>{
+    const cumulativePaid=cumulativePaidPerTerm[p.val().term];
+    const balance=totalFee-cumulativePaid;
+    const delBtn=role==="admin"? `<button class="btn danger" onclick="reversePayment('${p.key}')">Delete</button>`:"";
+    historyTable.innerHTML+=`
+     <tr>
+      <td>${p.val().date}</td>
+      <td>${p.val().term}</td>
+      <td>${p.val().amount}</td>
+      <td>${balance}</td>
+      <td>${delBtn}</td>
+     </tr>`;
+   });
+  });
+ });
 }
 
-// PRINT HISTORY (updated with Promises)
-function printHistory() {
-    if (!studentSelect.value) return alert("Select a student");
-    const [id, name, cls] = studentSelect.value.split("|");
-
-    historyStudent.innerHTML = `<strong>Student:</strong> ${name}<br><strong>Class:</strong> ${cls}<br><strong>Date:</strong> ${new Date().toLocaleDateString()}`;
-    historyPrintTable.innerHTML = "";
-
-    db.ref("finance/payments").orderByChild("studentId").equalTo(id)
-        .once("value", snap => {
-            if (!snap.exists()) {
-                historyPrintTable.innerHTML = "<tr><td colspan='4'>No payments</td></tr>";
-                document.getElementById("historyPrint").style.display = "block";
-                window.print();
-                document.getElementById("historyPrint").style.display = "none";
-                return;
-            }
-
-            let payments = [];
-            snap.forEach(p => payments.push({ key: p.key, ...p.val() }));
-            payments.sort((a, b) => new Date(a.date) - new Date(b.date));
-
-            let runningBalance = {};
-            let promises = payments.map(p => new Promise(resolve => {
-                getStudentTermFee(cls, p.term, totalFee => {
-                    if (runningBalance[p.term] === undefined) runningBalance[p.term] = totalFee;
-                    runningBalance[p.term] -= p.amount;
-                    historyPrintTable.innerHTML += `
-                        <tr>
-                            <td>${p.date}</td>
-                            <td>${p.term}</td>
-                            <td>${p.amount}</td>
-                            <td>${runningBalance[p.term]}</td>
-                        </tr>
-                    `;
-                    resolve();
-                });
-            }));
-
-            Promise.all(promises).then(() => {
-                document.getElementById("historyPrint").style.display = "block";
-                window.print();
-                document.getElementById("historyPrint").style.display = "none";
-            });
-        });
+// PRINT HISTORY
+function printHistory(){
+ if(!studentSelect.value) return alert("Select a student");
+ const [id,name,cls]=studentSelect.value.split("|");
+ historyStudent.innerHTML=`<strong>Student:</strong> ${name}<br><strong>Class:</strong> ${cls}<br><strong>Date:</strong> ${new Date().toLocaleDateString()}`;
+ historyPrintTable.innerHTML = historyTable.innerHTML.replace(/<td>.*Delete.*<\/td>/g,'');
+ document.getElementById("historyPrint").style.display="block";
+ window.print();
+ document.getElementById("historyPrint").style.display="none";
 }
 
 // REVERSE PAYMENT (ADMIN ONLY)
