@@ -4,7 +4,6 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Finance Management - NYAMBUNWA ACADEMY</title>
-
 <style>
 body{font-family:'Segoe UI',Tahoma,sans-serif;margin:0;background:#e9f7ec;}
 header{background:#0b722d;color:#fff;padding:18px;text-align:center;font-size:26px;font-weight:700;}
@@ -27,13 +26,35 @@ footer{margin-top:40px;text-align:center;padding:12px;background:#0b722d;color:#
 }
 </style>
 </head>
-
 <body>
 
 <header>FINANCE MANAGEMENT</header>
 <div class="sub-title">NYAMBUNWA ACADEMY</div>
 
 <div class="container">
+
+<!-- ADMIN FEE SETUP -->
+<div class="section" id="adminFeeSection" style="display:none;">
+<h3>Admin: Set Total Fee for Term</h3>
+
+<label>Select Class (optional, leave blank for all)</label>
+<select id="feeClassSelect">
+<option value="">All Classes</option>
+</select>
+
+<label>Select Term</label>
+<select id="feeTermSelect">
+<option value="">Select Term</option>
+<option value="Term 1">Term 1</option>
+<option value="Term 2">Term 2</option>
+<option value="Term 3">Term 3</option>
+</select>
+
+<label>Total Fee</label>
+<input type="number" id="totalFeeInput" placeholder="Enter total fee">
+
+<button class="btn" onclick="saveTotalFee()">Save Total Fee</button>
+</div>
 
 <!-- PAYMENT ENTRY -->
 <div class="section">
@@ -151,12 +172,23 @@ firebase.initializeApp(firebaseConfig);
 const db=firebase.database();
 const role=localStorage.getItem("userRole");
 
+const classSelect=document.getElementById("classSelect");
+const studentSelect=document.getElementById("studentSelect");
+const paymentDate=document.getElementById("paymentDate");
+const amountPaid=document.getElementById("amountPaid");
+const termSelect=document.getElementById("termSelect");
+const historyTable=document.getElementById("historyTable");
+const financeTable=document.getElementById("financeTable");
+const historyStudent=document.getElementById("historyStudent");
+const historyPrintTable=document.getElementById("historyPrintTable");
+
 // INIT
 window.onload=()=>{
  if(!localStorage.getItem("loggedInUser")) location="login.html";
  paymentDate.value=new Date().toISOString().split("T")[0];
- if(role!=="admin") document.getElementById("adminCol").style.display="none";
- loadClasses(); loadFinance();
+ if(role==="admin") document.getElementById("adminFeeSection").style.display="block";
+ else document.getElementById("adminCol").style.display="none";
+ loadClasses(); loadClassesForFee(); loadFinance();
 };
 
 // LOAD CLASSES
@@ -168,7 +200,7 @@ function loadClasses(){
  });
 }
 
-// LOAD STUDENTS
+// LOAD STUDENTS BY CLASS
 function loadStudentsByClass(){
  studentSelect.innerHTML="<option value=''>Select Student</option>";
  historyTable.innerHTML="<tr><td colspan='5'>Select a student</td></tr>";
@@ -176,86 +208,111 @@ function loadStudentsByClass(){
  db.ref("students").orderByChild("class").equalTo(classSelect.value)
  .once("value",s=>{
   s.forEach(x=>{
-   studentSelect.innerHTML+=
-   `<option value="${x.key}|${x.val().name}|${x.val().class}">${x.val().name}</option>`;
+   studentSelect.innerHTML+=`<option value="${x.key}|${x.val().name}|${x.val().class}">${x.val().name}</option>`;
   });
  });
 }
 
-// SAVE PAYMENT WITH TERM
+// ADMIN FEE SETUP
+const feeClassSelect=document.getElementById("feeClassSelect");
+const feeTermSelect=document.getElementById("feeTermSelect");
+const totalFeeInput=document.getElementById("totalFeeInput");
+
+function loadClassesForFee(){
+ db.ref("students").once("value",s=>{
+  s.forEach(x=>{
+   feeClassSelect.innerHTML+=`<option>${x.val().class}</option>`;
+  });
+ });
+}
+
+function saveTotalFee(){
+ if(!feeTermSelect.value || !totalFeeInput.value) return alert("Select Term and enter Fee");
+ const term=feeTermSelect.value;
+ const fee=Number(totalFeeInput.value);
+ const cls=feeClassSelect.value || "all";
+ db.ref(`finance/termFees/${term}/${cls}`).set({totalFee:fee},()=>{
+  alert("Total fee set successfully!");
+  totalFeeInput.value=""; feeTermSelect.value="";
+ });
+}
+
+// GET TOTAL FEE FOR STUDENT & TERM
+function getStudentTermFee(studentClass, term, callback){
+ db.ref(`finance/termFees/${term}/${studentClass}`).once("value",s=>{
+  if(s.exists()) return callback(s.val().totalFee);
+  db.ref(`finance/termFees/${term}/all`).once("value",s2=>{
+   if(s2.exists()) return callback(s2.val().totalFee);
+   callback(50000);
+  });
+ });
+}
+
+// SAVE PAYMENT
 function savePayment(){
  if(!studentSelect.value || !amountPaid.value || !termSelect.value)
   return alert("Fill all fields including Term");
  const [id,name,cls]=studentSelect.value.split("|");
  db.ref("finance/payments").push({
-  studentId:id,
-  studentName:name,
-  class:cls,
-  amount:Number(amountPaid.value),
-  term:termSelect.value,
+  studentId:id, studentName:name, class:cls,
+  amount:Number(amountPaid.value), term:termSelect.value,
   date:paymentDate.value
  });
- amountPaid.value="";
- termSelect.value="";
+ amountPaid.value=""; termSelect.value="";
  loadStudentHistory();
+ loadFinance();
 }
 
-// LOAD HISTORY WITH BALANCE AND TERM
+// LOAD HISTORY
 function loadStudentHistory(){
  if(!studentSelect.value) return;
- const [id]=studentSelect.value.split("|");
+ const [id,name,cls]=studentSelect.value.split("|");
  historyTable.innerHTML="";
  db.ref("finance/payments").orderByChild("studentId").equalTo(id)
  .once("value",s=>{
   if(!s.exists()){
-   historyTable.innerHTML="<tr><td colspan='5'>No payments</td></tr>";
-   return;
+   historyTable.innerHTML="<tr><td colspan='5'>No payments</td></tr>"; return;
   }
-  let totalFee = 50000;
-  let cumulativePaid = 0;
+  let cumulativePaidPerTerm={};
   s.forEach(p=>{
-   cumulativePaid += p.val().amount;
-   let balance = totalFee - cumulativePaid;
-   const delBtn = role==="admin"
-    ? `<button class="btn danger" onclick="reversePayment('${p.key}')">Delete</button>`
-    : "";
-   historyTable.innerHTML+=`
-   <tr>
-    <td>${p.val().date}</td>
-    <td>${p.val().term}</td>
-    <td>${p.val().amount}</td>
-    <td>${balance}</td>
-    <td>${delBtn}</td>
-   </tr>`;
+   const term=p.val().term;
+   if(!cumulativePaidPerTerm[term]) cumulativePaidPerTerm[term]=0;
+   cumulativePaidPerTerm[term]+=p.val().amount;
+  });
+  s.forEach(p=>{
+   getStudentTermFee(cls, p.val().term, totalFee=>{
+    const cumulativePaid=cumulativePaidPerTerm[p.val().term];
+    const balance=totalFee-cumulativePaid;
+    const delBtn=role==="admin"? `<button class="btn danger" onclick="reversePayment('${p.key}')">Delete</button>`:"";
+    historyTable.innerHTML+=`
+     <tr>
+      <td>${p.val().date}</td>
+      <td>${p.val().term}</td>
+      <td>${p.val().amount}</td>
+      <td>${balance}</td>
+      <td>${delBtn}</td>
+     </tr>`;
+   });
   });
  });
 }
 
-// PRINT HISTORY WITH TERM
+// PRINT HISTORY
 function printHistory(){
  if(!studentSelect.value) return alert("Select a student");
  const [id,name,cls]=studentSelect.value.split("|");
-
- historyStudent.innerHTML=
- `<strong>Student:</strong> ${name}<br>
-  <strong>Class:</strong> ${cls}<br>
-  <strong>Date:</strong> ${new Date().toLocaleDateString()}`;
-
- // copy table and remove Delete buttons
+ historyStudent.innerHTML=`<strong>Student:</strong> ${name}<br><strong>Class:</strong> ${cls}<br><strong>Date:</strong> ${new Date().toLocaleDateString()}`;
  historyPrintTable.innerHTML = historyTable.innerHTML.replace(/<td>.*Delete.*<\/td>/g,'');
- historyPrint.style.display="block";
+ document.getElementById("historyPrint").style.display="block";
  window.print();
- historyPrint.style.display="none";
+ document.getElementById("historyPrint").style.display="none";
 }
 
 // REVERSE PAYMENT (ADMIN ONLY)
 function reversePayment(id){
  if(role!=="admin") return;
  if(!confirm("Are you sure you want to reverse this payment?")) return;
- db.ref("finance/payments/"+id).remove(()=>{
-  loadStudentHistory();
-  loadFinance();
- });
+ db.ref("finance/payments/"+id).remove(()=>{ loadStudentHistory(); loadFinance(); });
 }
 
 // LOAD BALANCES
@@ -268,13 +325,13 @@ function loadFinance(){
    s.forEach(x=>{
     const fee=50000, paid=t[x.key]||0;
     financeTable.innerHTML+=`
-    <tr>
-     <td>${x.val().name}</td>
-     <td>${x.val().class}</td>
-     <td>${fee}</td>
-     <td>${paid}</td>
-     <td>${fee-paid}</td>
-    </tr>`;
+     <tr>
+      <td>${x.val().name}</td>
+      <td>${x.val().class}</td>
+      <td>${fee}</td>
+      <td>${paid}</td>
+      <td>${fee-paid}</td>
+     </tr>`;
    });
   });
  });
