@@ -89,8 +89,15 @@ footer{
 <div class="section">
 <h3>Record Fee Payment</h3>
 
+<label>Select Class</label>
+<select id="classSelect" onchange="loadStudentsByClass()">
+    <option value="">Select Class</option>
+</select>
+
 <label>Select Student</label>
-<select id="studentSelect"></select>
+<select id="studentSelect">
+    <option value="">Select Student</option>
+</select>
 
 <label>Amount Paid</label>
 <input type="number" id="amountPaid">
@@ -152,19 +159,35 @@ const db = firebase.database();
 // LOGIN CHECK
 window.onload = ()=>{
  if(!localStorage.getItem("loggedInUser")) location="login.html";
- loadStudents();
+ loadClasses();
  loadFinance();
 };
 
-// LOAD STUDENTS
-function loadStudents(){
+// LOAD CLASSES FROM STUDENTS
+function loadClasses(){
+ let classes=new Set();
  db.ref("students").once("value",snap=>{
-  studentSelect.innerHTML="<option value=''>Select student</option>";
+  snap.forEach(s=>{
+    classes.add(s.val().class);
+  });
+  classes.forEach(c=>{
+    classSelect.innerHTML+=`<option value="${c}">${c}</option>`;
+  });
+ });
+}
+
+// LOAD STUDENTS BY CLASS
+function loadStudentsByClass(){
+ const cls=classSelect.value;
+ studentSelect.innerHTML="<option value=''>Select Student</option>";
+ if(!cls) return;
+
+ db.ref("students").orderByChild("class").equalTo(cls).once("value",snap=>{
   snap.forEach(s=>{
     const v=s.val();
     studentSelect.innerHTML+=
      `<option value="${s.key}|${v.name}|${v.class}">
-        ${v.name} (${v.class})
+        ${v.name}
       </option>`;
   });
  });
@@ -172,7 +195,9 @@ function loadStudents(){
 
 // SAVE PAYMENT
 function savePayment(){
- if(!studentSelect.value||!amountPaid.value||!paymentDate.value) return alert("Fill all fields");
+ if(!studentSelect.value||!amountPaid.value||!paymentDate.value)
+   return alert("Fill all fields");
+
  const [id,name,cls]=studentSelect.value.split("|");
 
  db.ref("finance/payments").push({
@@ -186,7 +211,7 @@ function savePayment(){
  amountPaid.value="";
 }
 
-// LOAD FINANCE
+// LOAD FINANCE & BALANCES
 function loadFinance(){
  db.ref("finance/payments").on("value",snap=>{
   let totals={};
@@ -200,7 +225,7 @@ function loadFinance(){
     stuSnap.forEach(s=>{
       const v=s.val();
       const paid=totals[s.key]||0;
-      const fee=50000; // default fee per student (can be class-based)
+      const fee=50000;   // can be class-based later
       const bal=fee-paid;
 
       financeTable.innerHTML+=`
@@ -210,7 +235,11 @@ function loadFinance(){
         <td>${fee}</td>
         <td>${paid}</td>
         <td>${bal}</td>
-        <td><button onclick="printReceipt('${v.name}','${v.class}',${paid},${bal})">Print</button></td>
+        <td>
+          <button onclick="printReceipt('${v.name}','${v.class}',${paid},${bal})">
+            Print
+          </button>
+        </td>
       </tr>`;
     });
   });
@@ -219,8 +248,8 @@ function loadFinance(){
 
 // PRINT RECEIPT
 function printReceipt(name,cls,paid,bal){
- document.getElementById("receipt").style.display="block";
- document.getElementById("rDetails").innerHTML=`
+ receipt.style.display="block";
+ rDetails.innerHTML=`
  <strong>Student:</strong> ${name}<br>
  <strong>Class:</strong> ${cls}<br>
  <strong>Amount Paid:</strong> ${paid}<br>
@@ -228,7 +257,7 @@ function printReceipt(name,cls,paid,bal){
  <strong>Date:</strong> ${new Date().toLocaleDateString()}
  `;
  window.print();
- document.getElementById("receipt").style.display="none";
+ receipt.style.display="none";
 }
 
 function goBack(){ location="index.html"; }
