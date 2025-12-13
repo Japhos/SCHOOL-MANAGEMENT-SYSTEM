@@ -6,7 +6,6 @@
 <title>Finance Management - NYAMBUNWA ACADEMY</title>
 
 <style>
-/* --- SAME STYLES (UNCHANGED) --- */
 body{font-family:'Segoe UI',Tahoma,sans-serif;margin:0;background:#e9f7ec;}
 header{background:#0b722d;color:#fff;padding:18px;text-align:center;font-size:26px;font-weight:700;}
 .sub-title{text-align:center;color:#064d1a;font-weight:600;margin-top:6px;}
@@ -76,6 +75,7 @@ footer{margin-top:40px;text-align:center;padding:12px;background:#0b722d;color:#
 </tbody>
 </table>
 
+<!-- PRINT HISTORY BUTTON VISIBLE TO ALL USERS -->
 <button class="btn" onclick="printHistory()">🖨 Print History</button>
 </div>
 
@@ -101,6 +101,27 @@ footer{margin-top:40px;text-align:center;padding:12px;background:#0b722d;color:#
 </div>
 
 <footer>© 2025 NYAMBUNWA ACADEMY — School Management System</footer>
+
+<!-- PRINTABLE HISTORY -->
+<div id="historyPrint" class="printArea" style="display:none;padding:20px;">
+<h2 style="text-align:center;color:#0b722d;">NYAMBUNWA ACADEMY</h2>
+<h3 style="text-align:center;">Fee Payment History</h3>
+<p id="historyStudent"></p>
+
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Amount</th>
+</tr>
+</thead>
+<tbody id="historyPrintTable"></tbody>
+</table>
+
+<p style="margin-top:30px;">
+<strong>Authorized Signature:</strong> ______________________
+</p>
+</div>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
@@ -145,8 +166,7 @@ function loadStudentsByClass(){
  .once("value",s=>{
   s.forEach(x=>{
    studentSelect.innerHTML+=
-   `<option value="${x.key}|${x.val().name}|${x.val().class}">
-    ${x.val().name}</option>`;
+   `<option value="${x.key}|${x.val().name}|${x.val().class}">${x.val().name}</option>`;
   });
  });
 }
@@ -188,6 +208,23 @@ function loadStudentHistory(){
  });
 }
 
+// PRINT HISTORY (ALL USERS)
+function printHistory(){
+ if(!studentSelect.value) return alert("Select a student");
+ const [id,name,cls]=studentSelect.value.split("|");
+
+ historyStudent.innerHTML=
+ `<strong>Student:</strong> ${name}<br>
+  <strong>Class:</strong> ${cls}<br>
+  <strong>Date:</strong> ${new Date().toLocaleDateString()}`;
+
+ // copy table
+ historyPrintTable.innerHTML=historyTable.innerHTML.replace(/<td>.*Delete.*<\/td>/g,''); // remove buttons
+ historyPrint.style.display="block";
+ window.print();
+ historyPrint.style.display="none";
+}
+
 // REVERSE PAYMENT (ADMIN ONLY)
 function reversePayment(id){
  if(role!=="admin") return;
@@ -220,7 +257,6 @@ function loadFinance(){
  });
 }
 
-function printHistory(){ window.print(); }
 function goBack(){ location="index.html"; }
 </script>
 
