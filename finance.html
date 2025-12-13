@@ -95,7 +95,7 @@ footer{
 </select>
 
 <label>Select Student</label>
-<select id="studentSelect">
+<select id="studentSelect" onchange="loadStudentHistory()">
     <option value="">Select Student</option>
 </select>
 
@@ -103,12 +103,28 @@ footer{
 <input type="number" id="amountPaid">
 
 <label>Payment Date</label>
-<input type="date" id="paymentDate">
+<input type="date" id="paymentDate" readonly>
 
 <button class="btn" onclick="savePayment()">Save Payment</button>
 </div>
 
-<!-- PAYMENTS TABLE -->
+<!-- PAYMENT HISTORY -->
+<div class="section">
+<h3>Payment History (Selected Student)</h3>
+<table>
+<thead>
+<tr>
+<th>Date</th>
+<th>Amount</th>
+</tr>
+</thead>
+<tbody id="historyTable">
+<tr><td colspan="2">Select a student to view history</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- PAYMENTS & BALANCES -->
 <div class="section">
 <h3>Payments & Balances</h3>
 <table>
@@ -117,7 +133,7 @@ footer{
 <th>Student</th>
 <th>Class</th>
 <th>Total Fee</th>
-<th>Paid</th>
+<th>Total Paid</th>
 <th>Balance</th>
 <th>Receipt</th>
 </tr>
@@ -156,20 +172,25 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// LOGIN CHECK
+// LOGIN CHECK & INIT
 window.onload = ()=>{
  if(!localStorage.getItem("loggedInUser")) location="login.html";
+ setToday();
  loadClasses();
  loadFinance();
 };
 
-// LOAD CLASSES FROM STUDENTS
+// SET TODAY'S DATE
+function setToday(){
+ const today = new Date().toISOString().split("T")[0];
+ paymentDate.value = today;
+}
+
+// LOAD CLASSES
 function loadClasses(){
  let classes=new Set();
  db.ref("students").once("value",snap=>{
-  snap.forEach(s=>{
-    classes.add(s.val().class);
-  });
+  snap.forEach(s=>classes.add(s.val().class));
   classes.forEach(c=>{
     classSelect.innerHTML+=`<option value="${c}">${c}</option>`;
   });
@@ -178,24 +199,27 @@ function loadClasses(){
 
 // LOAD STUDENTS BY CLASS
 function loadStudentsByClass(){
- const cls=classSelect.value;
  studentSelect.innerHTML="<option value=''>Select Student</option>";
- if(!cls) return;
+ historyTable.innerHTML="<tr><td colspan='2'>Select a student to view history</td></tr>";
+ if(!classSelect.value) return;
 
- db.ref("students").orderByChild("class").equalTo(cls).once("value",snap=>{
-  snap.forEach(s=>{
-    const v=s.val();
-    studentSelect.innerHTML+=
-     `<option value="${s.key}|${v.name}|${v.class}">
-        ${v.name}
-      </option>`;
-  });
+ db.ref("students")
+   .orderByChild("class")
+   .equalTo(classSelect.value)
+   .once("value",snap=>{
+    snap.forEach(s=>{
+      const v=s.val();
+      studentSelect.innerHTML+=
+       `<option value="${s.key}|${v.name}|${v.class}">
+          ${v.name}
+        </option>`;
+    });
  });
 }
 
 // SAVE PAYMENT
 function savePayment(){
- if(!studentSelect.value||!amountPaid.value||!paymentDate.value)
+ if(!studentSelect.value || !amountPaid.value)
    return alert("Fill all fields");
 
  const [id,name,cls]=studentSelect.value.split("|");
@@ -209,9 +233,36 @@ function savePayment(){
  });
 
  amountPaid.value="";
+ loadStudentHistory();
 }
 
-// LOAD FINANCE & BALANCES
+// LOAD PAYMENT HISTORY
+function loadStudentHistory(){
+ if(!studentSelect.value) return;
+
+ const [id]=studentSelect.value.split("|");
+ historyTable.innerHTML="";
+
+ db.ref("finance/payments")
+   .orderByChild("studentId")
+   .equalTo(id)
+   .once("value",snap=>{
+    if(!snap.exists()){
+      historyTable.innerHTML="<tr><td colspan='2'>No payments found</td></tr>";
+      return;
+    }
+    snap.forEach(p=>{
+      const v=p.val();
+      historyTable.innerHTML+=`
+      <tr>
+        <td>${v.date}</td>
+        <td>${v.amount}</td>
+      </tr>`;
+    });
+ });
+}
+
+// LOAD BALANCES
 function loadFinance(){
  db.ref("finance/payments").on("value",snap=>{
   let totals={};
@@ -225,7 +276,7 @@ function loadFinance(){
     stuSnap.forEach(s=>{
       const v=s.val();
       const paid=totals[s.key]||0;
-      const fee=50000;   // can be class-based later
+      const fee=50000;
       const bal=fee-paid;
 
       financeTable.innerHTML+=`
@@ -252,7 +303,7 @@ function printReceipt(name,cls,paid,bal){
  rDetails.innerHTML=`
  <strong>Student:</strong> ${name}<br>
  <strong>Class:</strong> ${cls}<br>
- <strong>Amount Paid:</strong> ${paid}<br>
+ <strong>Total Paid:</strong> ${paid}<br>
  <strong>Balance:</strong> ${bal}<br>
  <strong>Date:</strong> ${new Date().toLocaleDateString()}
  `;
