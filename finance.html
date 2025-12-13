@@ -49,6 +49,14 @@ footer{margin-top:40px;text-align:center;padding:12px;background:#0b722d;color:#
 <option value="">Select Student</option>
 </select>
 
+<label>Term</label>
+<select id="termSelect">
+<option value="">Select Term</option>
+<option value="Term 1">Term 1</option>
+<option value="Term 2">Term 2</option>
+<option value="Term 3">Term 3</option>
+</select>
+
 <label>Amount Paid</label>
 <input type="number" id="amountPaid">
 
@@ -66,13 +74,14 @@ footer{margin-top:40px;text-align:center;padding:12px;background:#0b722d;color:#
 <thead>
 <tr>
 <th>Date</th>
+<th>Term</th>
 <th>Amount</th>
 <th>Balance</th>
 <th id="adminCol">Action</th>
 </tr>
 </thead>
 <tbody id="historyTable">
-<tr><td colspan="4">Select a student to view history</td></tr>
+<tr><td colspan="5">Select a student to view history</td></tr>
 </tbody>
 </table>
 
@@ -112,6 +121,7 @@ footer{margin-top:40px;text-align:center;padding:12px;background:#0b722d;color:#
 <thead>
 <tr>
 <th>Date</th>
+<th>Term</th>
 <th>Amount</th>
 <th>Balance</th>
 </tr>
@@ -161,7 +171,7 @@ function loadClasses(){
 // LOAD STUDENTS
 function loadStudentsByClass(){
  studentSelect.innerHTML="<option value=''>Select Student</option>";
- historyTable.innerHTML="<tr><td colspan='4'>Select a student</td></tr>";
+ historyTable.innerHTML="<tr><td colspan='5'>Select a student</td></tr>";
  if(!classSelect.value) return;
  db.ref("students").orderByChild("class").equalTo(classSelect.value)
  .once("value",s=>{
@@ -172,19 +182,25 @@ function loadStudentsByClass(){
  });
 }
 
-// SAVE PAYMENT
+// SAVE PAYMENT WITH TERM
 function savePayment(){
- if(!studentSelect.value||!amountPaid.value) return alert("Fill all fields");
+ if(!studentSelect.value || !amountPaid.value || !termSelect.value)
+  return alert("Fill all fields including Term");
  const [id,name,cls]=studentSelect.value.split("|");
  db.ref("finance/payments").push({
-  studentId:id,studentName:name,class:cls,
-  amount:Number(amountPaid.value),date:paymentDate.value
+  studentId:id,
+  studentName:name,
+  class:cls,
+  amount:Number(amountPaid.value),
+  term:termSelect.value,
+  date:paymentDate.value
  });
  amountPaid.value="";
+ termSelect.value="";
  loadStudentHistory();
 }
 
-// LOAD HISTORY WITH BALANCE
+// LOAD HISTORY WITH BALANCE AND TERM
 function loadStudentHistory(){
  if(!studentSelect.value) return;
  const [id]=studentSelect.value.split("|");
@@ -192,10 +208,10 @@ function loadStudentHistory(){
  db.ref("finance/payments").orderByChild("studentId").equalTo(id)
  .once("value",s=>{
   if(!s.exists()){
-   historyTable.innerHTML="<tr><td colspan='4'>No payments</td></tr>";
+   historyTable.innerHTML="<tr><td colspan='5'>No payments</td></tr>";
    return;
   }
-  let totalFee = 50000; // fixed total fee per student
+  let totalFee = 50000;
   let cumulativePaid = 0;
   s.forEach(p=>{
    cumulativePaid += p.val().amount;
@@ -206,6 +222,7 @@ function loadStudentHistory(){
    historyTable.innerHTML+=`
    <tr>
     <td>${p.val().date}</td>
+    <td>${p.val().term}</td>
     <td>${p.val().amount}</td>
     <td>${balance}</td>
     <td>${delBtn}</td>
@@ -214,7 +231,7 @@ function loadStudentHistory(){
  });
 }
 
-// PRINT HISTORY WITH BALANCE
+// PRINT HISTORY WITH TERM
 function printHistory(){
  if(!studentSelect.value) return alert("Select a student");
  const [id,name,cls]=studentSelect.value.split("|");
