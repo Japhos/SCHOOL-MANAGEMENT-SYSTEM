@@ -124,17 +124,18 @@ footer{margin-top:40px;text-align:center;padding:12px;background:#0b722d;color:#
 <button class="btn" onclick="printHistory()">🖨 Print History</button>
 </div>
 
-<!-- PAYMENTS & BALANCES -->
+<!-- SCHOOL-WIDE TERM-SPECIFIC BALANCES -->
 <div class="section">
-<h3>Payments & Balances</h3>
+<h3>School-wide Payments & Balances (Term-specific)</h3>
+
 <table>
 <thead>
 <tr>
 <th>Student</th>
 <th>Class</th>
-<th>Total Fee</th>
-<th>Total Paid</th>
-<th>Balance</th>
+<th>Term 1 Fee</th><th>Term 1 Paid</th><th>Term 1 Balance</th>
+<th>Term 2 Fee</th><th>Term 2 Paid</th><th>Term 2 Balance</th>
+<th>Term 3 Fee</th><th>Term 3 Paid</th><th>Term 3 Balance</th>
 </tr>
 </thead>
 <tbody id="financeTable"></tbody>
@@ -209,7 +210,7 @@ window.onload=()=>{
  paymentDate.value=new Date().toISOString().split("T")[0];
  if(role==="admin") document.getElementById("adminFeeSection").style.display="block";
  else document.getElementById("adminCol").style.display="none";
- loadClasses(); loadClassesForFee(); loadFinance(); loadFeeSettings();
+ loadClasses(); loadClassesForFee(); loadFinanceTermWise(); loadFeeSettings();
 };
 
 // LOAD CLASSES
@@ -249,7 +250,7 @@ function saveTotalFee(){
  db.ref(`finance/termFees/${term}/${cls}`).set({totalFee:fee},()=>{
   alert("Total fee set successfully!");
   totalFeeInput.value=""; feeTermSelect.value="";
-  loadFeeSettings(); // refresh display
+  loadFeeSettings(); loadFinanceTermWise();
  });
 }
 
@@ -293,7 +294,7 @@ function savePayment(){
  });
  amountPaid.value=""; termSelect.value="";
  loadStudentHistory();
- loadFinance();
+ loadFinanceTermWise();
 }
 
 // LOAD HISTORY
@@ -343,26 +344,36 @@ function printHistory(){
 function reversePayment(id){
  if(role!=="admin") return;
  if(!confirm("Are you sure you want to reverse this payment?")) return;
- db.ref("finance/payments/"+id).remove(()=>{ loadStudentHistory(); loadFinance(); });
+ db.ref("finance/payments/"+id).remove(()=>{ loadStudentHistory(); loadFinanceTermWise(); });
 }
 
-// LOAD BALANCES
-function loadFinance(){
- db.ref("finance/payments").on("value",p=>{
-  let t={};
-  p.forEach(x=>t[x.val().studentId]=(t[x.val().studentId]||0)+x.val().amount);
-  db.ref("students").once("value",s=>{
-   financeTable.innerHTML="";
-   s.forEach(x=>{
-    const fee=50000, paid=t[x.key]||0;
-    financeTable.innerHTML+=`
-     <tr>
-      <td>${x.val().name}</td>
-      <td>${x.val().class}</td>
-      <td>${fee}</td>
-      <td>${paid}</td>
-      <td>${fee-paid}</td>
-     </tr>`;
+// SCHOOL-WIDE TERM-SPECIFIC BALANCES
+function loadFinanceTermWise(){
+ db.ref("students").once("value", s => {
+  financeTable.innerHTML = "";
+  s.forEach(stu => {
+   const studentId = stu.key;
+   const studentName = stu.val().name;
+   const studentClass = stu.val().class;
+   const terms = ["Term 1","Term 2","Term 3"];
+   let row = `<tr><td>${studentName}</td><td>${studentClass}</td>`;
+   let termDataPromises = terms.map(term => {
+    return new Promise(resolve => {
+     getStudentTermFee(studentClass, term, totalFee => {
+      db.ref("finance/payments").orderByChild("studentId").equalTo(studentId)
+       .once("value", paymentsSnap => {
+        let paid = 0;
+        paymentsSnap.forEach(p => { if(p.val().term === term) paid += p.val().amount; });
+        const balance = totalFee - paid;
+        resolve({term, fee: totalFee, paid, balance});
+       });
+     });
+    });
+   });
+   Promise.all(termDataPromises).then(results => {
+    results.forEach(t => { row += `<td>${t.fee}</td><td>${t.paid}</td><td>${t.balance}</td>`; });
+    row += "</tr>";
+    financeTable.innerHTML += row;
    });
   });
  });
